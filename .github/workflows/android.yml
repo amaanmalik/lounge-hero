@@ -34,7 +34,8 @@ jobs:
           mkdir -p dist
           cp "$apk" dist/HeroLounge-debug.apk
           (cd dist && sha256sum HeroLounge-debug.apk > HeroLounge-debug.apk.sha256)
-      - uses: actions/upload-artifact@v4
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
         with:
           name: HeroLounge-Android-debug
           path: dist/
