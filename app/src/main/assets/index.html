@@ -1,0 +1,1384 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>The Hero Lounge</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+/* Layout: title screen = roster grid beside a sticky detail/controls column; game screen = HUD, cafe canvas, hint strip, touch pad; chat is a bottom sheet. */
+:root{
+  --bg:#eef1fb;--surface:#ffffff;--surface-2:#f4f2ff;--ink:#2a2644;--muted:#625e86;--line:#d9ddf2;
+  --accent:#d63a63;--accent-ink:#ffffff;--mint:#3fb995;--butter:#f1b021;--focus:#5b4bd6;--bubble:#ebe8fb;
+  --shadow:0 10px 30px rgba(60,50,120,.13);
+  --font-display:'Fredoka','Trebuchet MS','Segoe UI',system-ui,sans-serif;
+  --font-body:'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#1b1930;--surface:#272443;--surface-2:#312d52;--ink:#f3effd;--muted:#b0abd3;--line:#403b69;--accent:#ff86a3;--accent-ink:#2b0f1b;--mint:#6fe0bd;--butter:#ffd166;--focus:#b9adff;--bubble:#37335c;--shadow:0 10px 30px rgba(0,0,0,.35);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1b1930;--surface:#272443;--surface-2:#312d52;--ink:#f3effd;--muted:#b0abd3;--line:#403b69;--accent:#ff86a3;--accent-ink:#2b0f1b;--mint:#6fe0bd;--butter:#ffd166;--focus:#b9adff;--bubble:#37335c;--shadow:0 10px 30px rgba(0,0,0,.35);color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:980px;margin:0 auto}
+h1,h2{font-family:var(--font-display);margin:0;line-height:1.1}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+kbd{display:inline-block;min-width:1.7em;padding:1px 7px;border:2px solid var(--line);border-bottom-width:4px;border-radius:8px;background:var(--surface);font:700 .8rem var(--font-body);text-align:center}
+.btn{border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:800;padding:12px 22px;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.18);transition:transform .08s}
+.btn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.18)}
+.btn.ghost{background:var(--surface);color:var(--ink);border:2px solid var(--line);box-shadow:none}
+.btn.small{padding:6px 14px;font-size:.85rem}
+.pill{display:inline-block;padding:2px 10px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:.78rem;font-weight:700;color:var(--muted)}
+.pill.staff{background:var(--butter);color:#3b2a00;border-color:transparent}
+/* title */
+.hero{text-align:center;padding:8px 0 18px}
+.hero h1{font-size:clamp(2.4rem,8vw,4.2rem);font-weight:700;letter-spacing:.01em}
+.hero h1 span{color:var(--accent)}
+.sub{margin:8px auto 0;max-width:34em;color:var(--muted)}
+.pick{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:22px;align-items:start}
+.roster{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.card{background:var(--surface);border:3px solid transparent;border-radius:20px;padding:8px;cursor:pointer;text-align:center;display:flex;flex-direction:column;gap:4px;align-items:center;box-shadow:var(--shadow)}
+.card canvas{width:100%;aspect-ratio:1;border-radius:14px;display:block}
+.card .nm{font-family:var(--font-display);font-weight:600;font-size:.98rem;line-height:1.15}
+.card[aria-pressed="true"]{border-color:var(--accent);transform:translateY(-3px)}
+.side{position:sticky;top:12px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel{background:var(--surface);border-radius:20px;padding:16px;box-shadow:var(--shadow)}
+.detail{display:flex;gap:14px;align-items:flex-start}
+.detail canvas{width:112px;height:112px;border-radius:16px;flex:none}
+.detail h2{font-size:1.4rem}
+.detail p{margin:6px 0 0;font-size:.92rem}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.quote{color:var(--muted);font-style:italic}
+.controls h2{font-size:1.05rem;margin-bottom:8px}
+.controls dl{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:0;font-size:.9rem;align-items:center}
+.controls dt{font-weight:800}
+.controls dd{margin:0;display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.controls p{margin:10px 0 0;font-size:.85rem;color:var(--muted)}
+/* game */
+.hud{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.squad-bar{display:flex;gap:8px;align-items:center;margin-right:auto;flex-wrap:wrap}
+.slot{display:flex;align-items:center;gap:8px;background:var(--surface);border:2.5px solid var(--line);border-radius:16px;padding:5px 10px 5px 6px;box-shadow:var(--shadow);cursor:pointer;text-align:left;transition:transform .08s,border-color .15s;position:relative}
+.slot.active{border-color:var(--accent);background:var(--surface-2);transform:translateY(-2px)}
+.slot.resting{border-color:var(--mint);opacity:.92}
+.slot canvas{width:42px;height:42px;border-radius:11px;flex:none}
+.slot .smeta{display:flex;flex-direction:column;min-width:66px;max-width:105px}
+.slot .sname{font-family:var(--font-display);font-size:.88rem;font-weight:600;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot .sstat{font-size:.7rem;font-weight:800;color:var(--muted);line-height:1.2}
+.slot .sbar{height:4px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:3px;width:100%}
+.slot .sfill{height:100%;background:var(--mint);transition:width .2s}
+.slot.resting .sfill{background:var(--butter)}
+.slot .brk-btn{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:2px 7px;font-size:.68rem;font-weight:800;cursor:pointer;margin-left:2px}
+.slot.resting .brk-btn{background:var(--mint);color:#11362b;border-color:transparent}
+.p-tag{display:inline-block;font-size:.66rem;font-weight:800;padding:1px 6px;border-radius:999px;background:var(--focus);color:#fff;margin-left:4px;vertical-align:middle}
+.mode-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.mode-btn{flex:1;min-width:64px;border:2px solid var(--line);background:var(--surface-2);border-radius:999px;padding:6px 10px;font-size:.8rem;font-weight:800;cursor:pointer;text-align:center}
+.mode-btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.squad-box{background:var(--surface);border-radius:20px;padding:14px 16px;box-shadow:var(--shadow)}
+.squad-box h2{font-size:1.05rem;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.squad-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.sslot{background:var(--surface-2);border:2px dashed var(--line);border-radius:14px;padding:6px 4px;text-align:center;min-height:82px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;position:relative}
+.sslot.filled{border-style:solid;border-color:var(--accent);cursor:pointer}
+.sslot canvas{width:46px;height:46px;border-radius:10px}
+.sslot span{font-size:.72rem;font-weight:800;line-height:1.1;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .badge{position:absolute;top:6px;right:6px;background:var(--accent);color:var(--accent-ink);font-size:.68rem;font-weight:800;padding:1px 7px;border-radius:999px}
+.card{position:relative}
+.lbl{display:block;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.stat{background:var(--surface);border-radius:14px;padding:6px 12px;min-width:74px;box-shadow:var(--shadow)}
+.stat b{font-family:var(--font-display);font-size:1.15rem;font-variant-numeric:tabular-nums}
+.acts{display:flex;gap:8px}
+.stage{position:relative;max-width:820px;margin:0 auto;border-radius:20px;overflow:hidden;box-shadow:var(--shadow);background:#f4cddc}
+.stage canvas{display:block;width:100%;height:auto;aspect-ratio:4/3}
+.toast{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);max-width:92%;background:rgba(42,38,68,.92);color:#fff;padding:8px 16px;border-radius:999px;font-weight:700;font-size:.9rem;text-align:center}
+.below{max-width:820px;margin:12px auto 0;display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between;align-items:center}
+.below p{margin:0;font-size:.9rem}
+.hint{font-weight:700}
+.mini{color:var(--muted)}
+.pad{display:none;max-width:820px;margin:14px auto 0;justify-content:space-between;align-items:center;gap:16px;user-select:none;-webkit-user-select:none;touch-action:none}
+@media (hover:none),(max-width:760px){.pad{display:flex}}
+.dpad{display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(2,56px);gap:6px}
+.dpad button{border:2px solid var(--line);border-radius:16px;background:var(--surface);font-size:1.2rem;touch-action:none}
+.dpad button.on{background:var(--accent);color:var(--accent-ink)}
+.dpad .u{grid-column:2;grid-row:1}.dpad .l{grid-column:1;grid-row:2}.dpad .d{grid-column:2;grid-row:2}.dpad .r{grid-column:3;grid-row:2}
+.abtns{display:flex;flex-direction:column;gap:10px}
+/* chat */
+#chat{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-end;justify-content:center;background:rgba(20,16,40,.5);
+  padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
+.sheet{width:min(580px,100%);max-height:86vh;display:flex;flex-direction:column;background:var(--surface);border-radius:24px 24px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom,0px));box-shadow:var(--shadow)}
+.chead{display:flex;gap:12px;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.chead canvas{width:56px;height:56px;border-radius:14px;flex:none}
+.chead div{flex:1;min-width:0}
+.chead b{font-family:var(--font-display);font-size:1.15rem;display:block}
+.chead span{font-size:.8rem;color:var(--muted)}
+.clog{flex:1;min-height:170px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:12px 2px}
+.msg{max-width:84%;padding:9px 13px;border-radius:16px;overflow-wrap:anywhere}
+.msg.them{background:var(--bubble);align-self:flex-start;border-bottom-left-radius:4px}
+.msg.me{background:var(--accent);color:var(--accent-ink);align-self:flex-end;border-bottom-right-radius:4px;font-weight:600}
+.dots span{display:inline-block;width:7px;height:7px;margin:0 2px;border-radius:50%;background:var(--muted);animation:b 1s infinite}
+.dots span:nth-child(2){animation-delay:.15s}.dots span:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-4px)}}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:4px 0 10px}
+.chips button{flex:none;border:2px solid var(--line);background:var(--surface-2);border-radius:999px;padding:5px 12px;font-size:.82rem;font-weight:700;cursor:pointer}
+#chatForm{display:flex;gap:8px}
+#chatInput{flex:1;min-width:0;border:2px solid var(--line);border-radius:999px;padding:10px 16px;background:var(--surface);color:var(--ink);font:inherit}
+@media (max-width:860px){.pick{grid-template-columns:1fr}.side{position:static}.roster{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<main class="wrap">
+<section id="title" aria-labelledby="ttl">
+  <header class="hero">
+    <h1 id="ttl">The Hero <span>Lounge</span></h1>
+    <p class="sub">A cozy caf� run by U.A. High heroes in training. Build a squad of up to 4 heroes to run the lounge together!</p>
+  </header>
+  <div class="pick">
+    <div class="roster" id="roster" role="group" aria-label="Choose your squad"></div>
+    <aside class="side">
+      <div class="squad-box">
+        <h2>Caf� Squad <span class="pill" id="squadCount">1 / 4</span></h2>
+        <div class="mode-bar" id="modeBar" role="group" aria-label="Player mode">
+          <button type="button" class="mode-btn" data-mode="1" aria-pressed="true">1P Solo</button>
+          <button type="button" class="mode-btn" data-mode="2" aria-pressed="false">2P Co-op</button>
+          <button type="button" class="mode-btn" data-mode="3" aria-pressed="false">3P Co-op</button>
+          <button type="button" class="mode-btn" data-mode="4" aria-pressed="false">4P Co-op</button>
+        </div>
+        <div class="squad-slots" id="squadSlots"></div>
+      </div>
+      <div class="panel detail">
+        <canvas id="detailPic" width="240" height="240"></canvas>
+        <div>
+          <h2 id="dName"></h2>
+          <div class="tags"><span class="pill" id="dRole"></span><span class="pill" id="dFav"></span></div>
+          <p><b id="dPw"></b> <span id="dPwd"></span></p>
+          <p class="quote" id="dQuote"></p>
+          <div style="margin-top:10px"><button class="btn ghost small" id="toggleSquadBtn" type="button">Add to squad</button></div>
+        </div>
+      </div>
+      <button class="btn" id="startBtn" type="button">Open the caf�</button>
+      <div class="panel controls">
+        <h2>Controls</h2>
+        <dl>
+          <dt>P1 Move / Act</dt><dd><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> � <kbd>E</kbd> serve � <kbd>B</kbd> break</dd>
+          <dt>P2 Move / Act</dt><dd><kbd></kbd><kbd></kbd><kbd></kbd><kbd></kbd> � <kbd>Enter</kbd> serve � <kbd>/</kbd> break</dd>
+          <dt>P3 / P4 Move</dt><dd><kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> (P3) � <kbd>Numpad</kbd> (P4)</dd>
+          <dt>Switch / Chat</dt><dd><kbd>Q</kbd> or <kbd>1</kbd>-<kbd>4</kbd> � <kbd>C</kbd> chat</dd>
+        </dl>
+        <p>In 2P-4P mode, each player controls their own hero at the same time! Send heroes on break to the lounge sofa to chat with each other.</p>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<section id="game" hidden>
+  <div class="hud">
+    <div class="squad-bar" id="squadBar" aria-label="Active squad members"></div>
+    <div class="stat"><span class="lbl">Points</span><b id="score">0</b></div>
+    <div class="stat"><span class="lbl">Served</span><b id="served">0</b></div>
+    <div class="stat"><span class="lbl">Streak</span><b id="streak">0</b></div>
+    <div class="stat"><span class="lbl">Friends</span><b id="friends">0</b></div>
+    <div class="stat"><span class="lbl">Carrying</span><b id="carry">Nothing</b></div>
+    <div class="stat"><span class="lbl">Stars</span><b id="stars">???</b></div>
+    <div class="acts"><button class="btn ghost small" id="soundBtn" type="button">Sound: on</button><button class="btn ghost small" id="backBtn" type="button">Change squad</button></div>
+  </div>
+  <div class="stage"><canvas id="cv" aria-label="The Hero Lounge caf�"></canvas><div class="toast" id="toast" role="status" hidden></div></div>
+  <div class="below"><p class="hint" id="hint"></p><p class="mini">Move <kbd>WASD</kbd> � Serve <kbd>E</kbd> � Switch <kbd>Q</kbd>/<kbd>1-4</kbd> � Break <kbd>B</kbd> � Chat <kbd>C</kbd></p></div>
+  <div class="pad">
+    <div class="dpad">
+      <button class="u" data-hold="up" aria-label="Up" type="button">&#9650;&#xFE0E;</button>
+      <button class="l" data-hold="left" aria-label="Left" type="button">&#9664;&#xFE0E;</button>
+      <button class="d" data-hold="down" aria-label="Down" type="button">&#9660;&#xFE0E;</button>
+      <button class="r" data-hold="right" aria-label="Right" type="button">&#9654;&#xFE0E;</button>
+    </div>
+    <div class="abtns">
+      <div style="display:flex;gap:8px"><button class="btn ghost small" id="padSwitch" type="button">Switch</button><button class="btn ghost small" id="padBreak" type="button">Break</button></div>
+      <div style="display:flex;gap:8px"><button class="btn ghost" id="padChat" type="button">Chat</button><button class="btn" id="padAct" type="button">Grab / Serve</button></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<div id="chat" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="chatName">
+    <div class="chead"><canvas id="chatPic" width="120" height="120"></canvas><div><b id="chatName"></b><span id="chatRole"></span></div><button class="btn ghost small" id="chatClose" type="button">Close</button></div>
+    <div class="clog" id="chatLog" aria-live="polite"></div>
+    <div class="chips" id="chips"></div>
+    <form id="chatForm" autocomplete="off"><input id="chatInput" type="text" maxlength="140" placeholder="Say something..." aria-label="Your message"><button class="btn" type="submit">Send</button></form>
+  </div>
+</div>
+
+<style>
+body.android-app { padding: 0; }
+.android-app .wrap { padding: 10px 12px; }
+.android-app .hero { margin-bottom: 10px; }
+.android-app #roster { max-height: 39dvh; overflow-y: auto; padding: 3px; }
+.android-app #title .controls dl { display: none; }
+.android-app #title .controls { margin-bottom: 8px; }
+.android-app #game:not([hidden]) { height: calc(100dvh - 20px); display: flex; flex-direction: column; gap: 5px; }
+.android-app #game .hud { margin: 0; gap: 4px 6px; }
+.android-app #game .squad-bar { flex: 1 0 100%; flex-wrap: nowrap; overflow-x: auto; padding: 3px; }
+.android-app #game .slot { flex: 0 0 auto; padding: 2px 5px; gap: 4px; }
+.android-app #game .slot canvas { width: 26px; height: 26px; }
+.android-app #game .slot .smeta { min-width: 43px; }
+.android-app #game .slot .brk-btn { display: none; }
+.android-app #game .stat { min-width: 0; padding: 2px 6px; box-shadow: none; }
+.android-app #game .stat .lbl { font-size: .59rem; }
+.android-app #game .stat b { font-size: .83rem; }
+.android-app #game .acts { display: flex; gap: 4px; }
+.android-app #game .acts .btn { min-height: 40px; padding: 4px 8px; box-shadow: none; }
+.android-app #game .stage { flex: 1 1 0; min-height: 0; width: 100%; background: var(--surface-2); border-radius: 12px; }
+.android-app #game .stage canvas { width: 100%; height: 100%; object-fit: contain; }
+.android-app #game .below { margin: 0; min-height: 24px; }
+.android-app #game .hint { font-size: .82rem; line-height: 1.2; }
+.android-app #game .pad, .android-app #game .mini { display: none; }
+.android-app #chat .sheet { max-height: 100dvh; }
+@media (orientation: portrait) {
+  .android-app #title .pick { grid-template-columns: 1fr; gap: 10px; }
+  .android-app #title .side { position: static; }
+}
+</style>
+<script>
+(function(){
+'use strict';
+const TAU=Math.PI*2, INK='#41303a';
+const $=s=>document.querySelector(s);
+const DPR=Math.min(3,Math.max(2,window.devicePixelRatio||1));
+const MENU=[{id:'tea',name:'Green Tea'},{id:'coffee',name:'Honey Latte'},{id:'cake',name:'Strawberry Cake'},{id:'cookie',name:'Choco Cookies'}];
+const MB={};MENU.forEach(m=>MB[m.id]=m);
+
+/* My Hero Academia cast: 9 Class 1-A students plus 3 U.A. High staff members. */
+const CAST=[
+{id:'deku',name:'Izuku Midoriya',role:'Student',pw:'One For All',pwd:'Stockpiles tremendous power for superhuman speed and strength.',fav:'cake',hs:'curly',bang:'curly',hair:'#214738',skin:'#fbdcc4',eye:'#2ea365',acc:['freckles'],fit:'vest',outfit:'#3b475e',trim:'#ffffff',spark:'#54e39c',bg:'#8fe0b5',expr:'smile',
+ intro:"I'm Izuku Midoriya-hero name Deku! Studying hard in Class 1-A at U.A. High!",
+ L:{greet:["Hi! Thanks so much for having me! This caf� has such a welcoming vibe!","Hey there! Taking orders behind the counter looks like great agility training!"],
+ power:["One For All! It was passed down to me, and I'm still learning to control every percent of it without breaking anything-especially teacups!","I store up kinetic power and channel it through my body with Full Cowling. Just a tiny spark is plenty for carrying trays!"],
+ joke:["Why did the hero bring a notebook to the bakery? To take notes on all the rising stars! ...Okay, maybe I need to work on my delivery.","What do you call a hero-in-training who drops the cake? Someone who needs more grip strength!"],
+ day:["Super busy! We had combat training with Aizawa-sensei this morning, so a sweet snack break is really saving me right now."],dream:["I want to become a hero who saves everyone with a fearless smile-someone who always reaches out a hand when people need help!"],
+ fav:["Strawberry cake! Or katsudon, obviously, if it were on the menu-but this strawberry cake is Plus Ultra!"],thanks:["Thank you so much!! You're amazing!"],bye:["See you later! Plus Ultra!"],compliment:["W-whoa, me?! Th-thank you! That means a lot, really!"],
+ cafe:["It's so peaceful here! After intense training at U.A., a place like this feels like a real sanctuary."],fallback:["Oh, that's really interesting! Let me jot that down in my hero analysis notebook!","Mm-hm! I totally see what you mean!","Plus Ultra! Tell me more!"]}},
+
+{id:'bakugo',name:'Katsuki Bakugo',role:'Student',pw:'Explosion',pwd:'Sweats nitroglycerin-like fluid and detonates it at will.',fav:'coffee',hs:'spiky',bang:'zig',hair:'#f3d884',skin:'#fbdcc4',eye:'#d93829',acc:[],fit:'vest',outfit:'#3b475e',trim:'#ffffff',spark:'#ff6b2b',bg:'#ffb078',expr:'smug',
+ intro:"Katsuki Bakugo. Remember the name, because I'm gonna surpass All Might and take the number one spot!",
+ L:{greet:["Tch. Took you long enough to notice me. Get my order right, extra!","Hey! Don't stand around gawking-I'm here to refuel, so make it snappy!"],
+ power:["Explosion! My palms secrete nitroglycerin sweat that I can detonate whenever I want. Keep sparks away from the napkins!","You wanna see my Quirk?! I blast through obstacles and fly across the battlefield. Way stronger than anyone else in Class 1-A!"],
+ joke:["Jokes?! I'm not a comedian, I'm the future Number One Hero! ...Tch. Why did the villain stay out of the kitchen? Because he couldn't handle the heat! Happy?!","Laugh all you want, nerd, my explosions speak louder than punchlines!"],
+ day:["Better than everyone else's! Crushed every drill in training today, obviously."],dream:["Number One Hero! Undisputed, unbeatable, and way above All Might's record!"],
+ fav:["Black coffee-or a latte with extra espresso. Bitter and strong, just how it should be. None of that overly sweet junk!"],thanks:["Hmph. About time. ...Not bad, actually."],bye:["Later! Don't slack off while I'm gone!"],compliment:["Hah! Obviously I'm the best! You've got decent eyes, I'll give you that."],
+ cafe:["It's way too quiet in here. Needs more energy. At least the coffee's solid."],fallback:["Hah?! Speak up if you've got something to say!","Tch. Whatever you say.","Don't waste my time-get to the point!"]}},
+
+{id:'uraraka',name:'Ochaco Uraraka',role:'Student',pw:'Zero Gravity',pwd:'Removes gravitational pull from anything she touches with her fingertips.',fav:'cake',hs:'bob',bang:'straight',hair:'#8a5640',skin:'#fbdcc4',eye:'#8a5640',acc:[],fit:'vest',outfit:'#3b475e',trim:'#ffffff',spark:'#ff7ab8',bg:'#ffc2df',expr:'happy',
+ intro:"Hiya! I'm Ochaco Uraraka from Class 1-A! Nice to meet you!",
+ L:{greet:["Hi hi!! Oh, everything on the counter looks so delicious!","Hey there! Working hard behind the counter? You've got this!"],
+ power:["Zero Gravity! Whatever I touch with all five finger pads floats right up! Super handy for carrying heavy stacks of plates-as long as I remember to say 'Release'!","I can make objects weightless! Just have to be careful not to overdo it or I get a little dizzy."],
+ joke:["Why are floating cakes the best kind of dessert? Because they have zero calories-well, zero gravity anyway!","What's an astronaut's favorite part of a caf�? The space! Hehe!"],
+ day:["Really good! We practiced rescue maneuvers today, and I'm trying to save up my allowance too, so a cozy break is perfect!"],dream:["I want to become a hero who can support my parents and give them an easy, happy life-and help everyone feel safe!"],
+ fav:["Strawberry cake!! Sweets are my absolute weakness, especially when there's a big strawberry on top!"],thanks:["Thank you so much! You're a lifesaver!"],bye:["Bye-bye! Have a super buoyant day!"],compliment:["Aww, stop it! You're making my cheeks even pinker!"],
+ cafe:["I love the pastel colors and warm lights in here! It makes my heart feel light as a feather!"],fallback:["Ooh, totally! I get that!","Hehe, you're fun to talk to!","Tell me more, I'm listening!"]}},
+
+{id:'todoroki',name:'Shoto Todoroki',role:'Student',pw:'Half-Cold Half-Hot',pwd:'Generates freezing ice from his right side and blazing fire from his left.',fav:'tea',hs:'neat',bang:'swept',hair:'#ffffff',hair2:'#c9363b',skin:'#fde0cc',eye:'#6b7a8f',eye2:'#3aa0f0',acc:['scar'],fit:'vest',outfit:'#3b475e',trim:'#ffffff',spark:'#7cf2ff',bg:'#b7d6f5',expr:'smile',
+ intro:"I'm Shoto Todoroki. Class 1-A. I'm here for some quiet and a cup of tea.",
+ L:{greet:["Hello. Nice weather today. Mind if I sit by the window?","Good afternoon. Thank you for running the counter."],
+ power:["Half-Cold Half-Hot. My right side freezes, and my left side generates flames. It's useful when a drink is either too hot or too cold.","I control ice and fire. Lately I've been practicing regulating both temperatures evenly-it works well for steeping tea."],
+ joke:["I don't really tell jokes. ...Wait. Is this caf�'s iced tea just regular tea after I hold the cup? Was that a joke?","Midoriya told me to try telling a pun. 'Stay cool.' Did I do it right?"],
+ day:["Calm. I spent extra time practicing temperature control after class, so sitting down feels nice."],dream:["I'm going to become my own kind of hero-someone people can look at and feel completely reassured."],
+ fav:["Green tea. Warm, not boiling. If it were cold soba on the menu, I'd order three bowls."],thanks:["Thank you. I appreciate it."],bye:["Take care. Let me know if you ever need ice for the kitchen."],compliment:["...Oh. Thank you. I'm not used to hearing that, so I appreciate it."],
+ cafe:["It's quiet and comfortable here. A good place to clear your head."],fallback:["I see. That makes sense.","Hm. Interesting perspective.","Go on. I'm listening."]}},
+
+{id:'tokoyami',name:'Fumikage Tokoyami',role:'Student',pw:'Dark Shadow',pwd:'Commands a sentient shadow monster that grows stronger in darkness.',fav:'coffee',hs:'bird',bang:'none',hair:'#242230',skin:'#242230',eye:'#e03a3a',acc:['beak','choker'],fit:'vest',outfit:'#3b475e',trim:'#ffffff',spark:'#8b5cf6',bg:'#998ec9',expr:'smug',
+ intro:"Fumikage Tokoyami. Dark Shadow and I seek refuge from the blinding afternoon sun.",
+ L:{greet:["Greetings. The twilight ambiance of this lounge suits us well.","Well met, keeper of the counter. Dark Shadow sends his regards-and requests snacks."],
+ power:["Dark Shadow dwells within me-a creature of living shadow. Bright light keeps him tame, while darkness unleashes his true ferocity.","My Quirk is a symbiotic shadow. Here in the warm glow of the caf�, he is quite polite."],
+ joke:["Why does Dark Shadow dislike sunlit caf�s? Because he prefers the... dark roast. Hm. Even I admit that was faint.","What do you call a shadow that steals cookies? A silhouette of gluttony."],
+ day:["A productive foray into the abyss of hero training. Now we rest in the gentle dimness."],dream:["To master the darkness within and stand tall as a beacon of justice alongside my classmates."],
+ fav:["A rich latte or dark coffee. Something deep and grounded to balance the light."],thanks:["You have my gratitude. Dark Shadow thanks you as well."],bye:["Farewell. May the shadows guide your path."],compliment:["Hmph... Your kind words pierce even my somber demeanor. Thank you."],
+ cafe:["The fairy lights cast soothing shadows across the floor. A most agreeable refuge."],fallback:["Hm. A profound thought.","Dark Shadow nods in agreement.","Indeed. Tell me more of this."]}},
+
+{id:'shoji',name:'Mezo Shoji',role:'Student',pw:'Dupli-Arms',pwd:'Replicates sensory organs like eyes, ears, and mouths on tentacle-like arms.',fav:'tea',hs:'neat',bang:'swept',hair:'#dce3ec',skin:'#f4cfb6',eye:'#475569',acc:['mask'],fit:'vest',outfit:'#3b475e',trim:'#ffffff',spark:'#60a5fa',bg:'#a9c7e8',expr:'smile',
+ intro:"I'm Mezo Shoji. Don't mind the mask-I'm happy to help carry extra trays if you need.",
+ L:{greet:["Hello there. Looks like you're managing the rush well.","Good to see you. Let me know if any table needs an extra pair of hands."],
+ power:["Dupli-Arms. I can manifest ears, eyes, and mouths on the tips of my extra arms. It's great for listening to orders across a noisy room.","My Quirk enhances my senses and strength. Even if someone whispers their order, I can hear it clearly."],
+ joke:["Why am I the best server at a busy caf�? Because I can carry six trays and hear every table at once. Not much of a joke, just practical.","What do you call six arms holding teacups? A full house."],
+ day:["Steady and focused. Helping classmates during training always makes the day worthwhile."],dream:["I want to use my strength and senses to protect those who can't defend themselves, no matter how tough things get."],
+ fav:["Green tea. Simple, calming, and easy to enjoy after a long session."],thanks:["Thank you. I appreciate the care you put into your work."],bye:["Take care of yourself. I'll stop by again soon."],compliment:["Thank you. That's very kind of you to say."],
+ cafe:["Warm, orderly, and welcoming to everyone. You've built a great atmosphere here."],fallback:["I hear you. Literally, and figuratively.","That makes a lot of sense.","Go on, I'm listening closely."]}},
+
+{id:'koda',name:'Koji Koda',role:'Student',pw:'Anivoice',pwd:'Communicates with and commands animals and insects with his voice.',fav:'cookie',hs:'rock',bang:'none',hair:'#f0b884',skin:'#f0b884',eye:'#3b332d',acc:['kodaHorns'],fit:'vest',outfit:'#3b475e',trim:'#ffffff',spark:'#7ec876',bg:'#bce3b4',expr:'shy',
+ intro:"...H-hi. I'm Koji Koda. I noticed you have a really cute cat sleeping over there...",
+ L:{greet:["...H-hello! *waves shyly* Your caf� is really cozy...","Hi... Is it okay if I sit quietly by the plants?"],
+ power:["Anivoice... I can talk to animals and ask them for help. Your cat Mochi told me she's having a wonderful nap.","Animals understand me when I speak gently. Even the little birds outside the window say this place smells nice."],
+ joke:["Um... What do you call a sleeping cat in a hero caf�? A... purr-tector! *blushes*","Why did the rabbit visit the bakery? Because it wanted some... hop-cakes!"],
+ day:["Nice and peaceful... I watered the flowers outside U.A. and fed the birds this morning."],dream:["I want to become a hero who protects both people and animals-someone gentle that everyone can trust."],
+ fav:["Choco cookies... They're sweet and crunchy, and easy to share."],thanks:["T-thank you so much! *bows politely*"],bye:["B-bye! Say hi to Mochi for me!"],compliment:["O-oh! Th-thank you... You're really nice too!"],
+ cafe:["The plants by the wall look so happy, and Mochi looks completely relaxed. It's my favorite spot."],fallback:["*nods happily* Mm-hm!","That sounds really sweet...","*smiles softly*"]}},
+
+{id:'mina',name:'Mina Ashido',role:'Student',pw:'Acid',pwd:'Secretes corrosive or slippery acid from her skin with controlled viscosity.',fav:'cookie',hs:'curly',bang:'curly',hair:'#ff85b8',skin:'#f7a6c8',eye:'#ffe14d',acc:['minaHorns','blackSclera'],fit:'vest',outfit:'#3b475e',trim:'#ffffff',spark:'#ff4d94',bg:'#ffc4e1',expr:'grin',
+ intro:"Heyaa!! I'm Mina Ashido-Pinky! Ready to bring the energy and breakdance on break!",
+ L:{greet:["HII!! Oh my gosh, this place is SO cute!!","Heya! Save me the best seat-and tell me all the good gossip!"],
+ power:["Acid! I can change its solubility and viscosity, so I can slide around like I'm ice skating or melt right through obstacles!","My Quirk lets me skate across floors at turbo speed! Don't worry, I won't melt your cute tables!"],
+ joke:["Why did the hero start dancing in the caf�? Because the beats were too sweet to handle!","What's a dancer's favorite snack? Break-fast cookies! Get it? Breakdance?!"],
+ day:["SO fun! I nailed a new spin move after training and now I get snacks with my friends!"],dream:["I wanna be a super cool, stylish hero everyone cheers for-with the best hero costume in Japan!"],
+ fav:["Choco cookies!! Gimme a whole plate of them!"],thanks:["THANK YOUUU!! You're the absolute best!"],bye:["Later alligator! Keep shining!"],compliment:["Eee!! Right?! You've got amazing taste!"],
+ cafe:["The pastel vibes here are 10 out of 10! Totally matches my aesthetic!"],fallback:["OMG, really?! Tell me everything!","Haha YES! Totally!","Ooh, I love that vibe!"]}},
+
+{id:'tsuyu',name:'Tsuyu Asui',role:'Student',pw:'Froppy',pwd:'Possesses frog-like abilities including long leaps, wall-clinging, and an extendable tongue.',fav:'tea',hs:'long',bang:'straight',hair:'#294d3a',skin:'#fbdcc4',eye:'#242228',acc:['tsuyuBow'],fit:'vest',outfit:'#3b475e',trim:'#ffffff',spark:'#4fc98b',bg:'#a9e3c6',expr:'smile',
+ intro:"I'm Tsuyu Asui, ribbit. Please call me Tsu.",
+ L:{greet:["Hello. Nice to see you running the counter today, ribbit.","Good afternoon. I always say what's on my mind, and this place looks wonderful."],
+ power:["My Quirk is Frog. I can jump high, stick to walls, swim fast, and extend my tongue up to twenty meters. Just don't ask me to work in winter, ribbit.","I can do pretty much anything a frog can do. It's very versatile for rescue missions."],
+ joke:["Why are frogs always so happy? Because they eat whatever bugs them, ribbit. ...Kero.","What do you call a hero frog drinking tea? A steep-hopper."],
+ day:["Pretty good, ribbit. Rainy mornings actually put me in a great mood."],dream:["I want to be a reliable hero who stays calm in any crisis and keeps everyone safe, no matter what."],
+ fav:["Green tea, ribbit. Warm tea helps keep me cozy when the air conditioning is on."],thanks:["Thank you very much, ribbit."],bye:["See you next time. Take care, ribbit."],compliment:["Oh, thank you. You're very honest and kind, ribbit."],
+ cafe:["It's warm, tidy, and relaxing here. Just the right temperature, ribbit."],fallback:["That makes sense, ribbit.","Hmm, I hadn't thought of it that way, kero.","Tell me more, I'm listening."]}},
+
+{id:'aizawa',name:'Shota Aizawa',role:'Staff',pw:'Erasure',pwd:'Cancels out anyone\'s Quirk simply by looking at them until he blinks.',fav:'coffee',hs:'messy',bang:'zig',hair:'#23222b',skin:'#f4d3bc',eye:'#2b2936',acc:['scarf','bag'],fit:'track',outfit:'#2b2d3c',trim:'#8b92a8',spark:'#ef4444',bg:'#b4b9cc',expr:'sleepy',
+ intro:"Shota Aizawa. Homeroom teacher for Class 1-A. Don't make a ruckus while I drink my coffee.",
+ L:{greet:["...Hey. Keep the noise down. I'm on break.","Afternoon. If any of my students start causing trouble in here, let me know."],
+ power:["Erasure. I cancel a person's Quirk as long as I keep them in my line of sight. Dry eye is a pain, though-I need eye drops after five minutes.","My Quirk erases Quirks. So no using abilities inside the caf�, got it?"],
+ joke:["Jokes? Do I look like Present Mic to you? ...Here's one: my sleep schedule. That's the whole joke.","If you want comedy, go talk to Yamada. I'm just here for caffeine."],
+ day:["Exhausting. Class 1-A managed to survive another training exercise without blowing up the gym. Barely."],dream:["To make sure every single one of my students graduates alive, capable, and ready for the real world."],
+ fav:["Black coffee. Or a strong latte if I'm feeling generous. Nothing fancy."],thanks:["...Thanks. Good work."],bye:["I'm going to take a nap in my sleeping bag. Don't wake me."],compliment:["...Hmph. Save the flattery for your assignments. Thanks."],
+ cafe:["Quiet enough to catch a ten-minute nap. And the cat over there has the right idea."],fallback:["...Mm.","Logical enough.","Keep it brief, I'm resting my eyes."]}},
+
+{id:'allmight',name:'Toshinori Yagi',role:'Staff',pw:'Symbol of Peace',pwd:'Legendary hero whose boundless spirit and strength inspire everyone around him.',fav:'cookie',hs:'tall',bang:'zig',hair:'#ffe159',skin:'#fbdcc4',eye:'#3aa0f0',acc:[],fit:'vest',outfit:'#2b59b5',trim:'#ffd54f',spark:'#ff4d4d',bg:'#ffe08a',expr:'grin',
+ intro:"I AM HERE!! ...In a cozy caf�, enjoying a well-earned snack break! Call me All Might!",
+ L:{greet:["I AM HERE!! Haha! Wonderful to see such bright young faces behind the counter!","Greetings, young hero! Running a caf� takes heart-and you have plenty of it!"],
+ power:["Once, I wielded One For All as the Symbol of Peace! Now I pass my wisdom on to the next generation of heroes-including young Midoriya!","True heroic power comes from the spirit to protect others, even when the rush hour gets tough!"],
+ joke:["Why did the Symbol of Peace bring extra napkins to the caf�?! Because justice is ALWAYS... served! HAHAHA!","What is a hero's favorite exercise?! Table-lifts! Haha!"],
+ day:["Splendid! Watching the students of U.A. grow stronger every day fills my heart with pride!"],dream:["To nurture the next generation of heroes so peace shines brighter than ever before!"],
+ fav:["Choco cookies! A classic treat that pairs wonderfully with a warm cup of tea or coffee!"],thanks:["HAHAHA! Thank you kindly, young friend! Keep up the Plus Ultra effort!"],bye:["Farewell! Remember: Go beyond-PLUS ULTRA!!"],compliment:["HAHA! You're too kind! It is YOU who is doing the heroic work today!"],
+ cafe:["A magnificent establishment! Warmth, smiles, and delicious treats-the true pillars of peace!"],fallback:["HAHAHA! Indeed!","A fine observation, young hero!","Keep that positive spirit shining!"]}},
+
+{id:'mic',name:'Hizashi Yamada',role:'Staff',pw:'Voice',pwd:'Projects deafening, high-volume soundwaves capable of shattering eardrums.',fav:'coffee',hs:'tall',bang:'swept',hair:'#ffe159',skin:'#fbdcc4',eye:'#65a30d',acc:['glasses','headphones','stache'],fit:'track',outfit:'#292a36',trim:'#fbbf24',spark:'#ff6b2b',bg:'#ffd180',expr:'grin',
+ intro:"YEAAAH!! It's your favorite U.A. teacher and radio DJ, Present Mic!! Put your hands up!!",
+ L:{greet:["HEEEY LISTENERS!! How's the best caf� in town doing today?! YEAAAH!!","WHAT'S UP, DJ COUNTER?! Ready to spin some lattes and drop some beats?!"],
+ power:["VOICE!! I can crank up my volume to supersonic levels! Don't worry, I'll keep it at an indoor whisper-mostly!","My Quirk amplifies my voice to shatter glass! Great for concerts, terrible for libraries!"],
+ joke:["Why did Present Mic get banned from the quiet study hall?! Because he couldn't turn down the... VOLUME! YEAAAH!!","What's a DJ's favorite drink?! A... REMIX-spresso! C'mon, give me some applause!"],
+ day:["LOUD AND PROUD!! Taught English class, hosted my radio show, and now I'm on air at The Hero Lounge!"],dream:["To keep the airwaves-and the hearts of young heroes-pumped up and full of energy!"],
+ fav:["Honey Latte!! Gotta keep those vocal cords smooth and energized for the late-night broadcast!"],thanks:["THANK YOU VERY MUUUCH!! Five stars on the airwaves!!"],bye:["SIGNING OFF!! Catch you on the flip side, listeners!! YEAAAH!!"],compliment:["AWW YEAH!! You've got great taste in heroes AND music!!"],
+ cafe:["The acoustics in here are off the charts!! Needs a turntable in the corner, though!"],fallback:["CAN I GET A YEAH?!","Now THAT'S music to my ears!!","Keep that rhythm going, listener!!"]}},
+
+{id:'midnight',name:'Nemuri Kayama',role:'Staff',pw:'Somnambulist',pwd:'Emits a sweet-smelling aroma that puts anyone nearby into a deep sleep.',fav:'cake',hs:'long',bang:'zig',hair:'#292442',skin:'#fde0cc',eye:'#4775d1',acc:['midnightMask'],fit:'ribbon',outfit:'#f5f3ff',trim:'#3b3355',spark:'#e84393',bg:'#e3b8eb',expr:'smug',
+ intro:"Nemuri Kayama-the R-Rated Hero, Midnight! Modern Hero Art History teacher at U.A. High.",
+ L:{greet:["Well hello there! What a charmingly dramatic caf� you're running!","Good afternoon, darling! Save a seat for a tired art history teacher, won't you?"],
+ power:["Somnambulist! A sweet fragrance drifts from my skin and sends anyone nearby straight to dreamland. Don't worry, I keep it tightly controlled indoors!","My Quirk is all about aroma and timing-just like a freshly baked strawberry cake!"],
+ joke:["Why did the villain fall asleep during my lecture? Because my Quirk is simply... breathtaking! Fufufu!","What's an art teacher's favorite caf� order? A latte with extra... draw-ing on the foam!"],
+ day:["Fabulous! The students finally grasped the artistry behind heroic stage presence today."],dream:["To inspire young heroes to express themselves boldly and with true passion!"],
+ fav:["Strawberry Cake! Sweet, theatrical, and impossible to resist!"],thanks:["Merci, sweetheart! Simply divine!"],bye:["Au revoir! Keep bringing the drama and charm!"],compliment:["Fufufu! Oh, you really know how to flatter a lady!"],
+ cafe:["The pastel palette and warm lighting here have such exquisite aesthetic harmony!"],fallback:["Fufufu, how captivating!","Now THAT has flair!","Tell me more, darling!"]}},
+
+{id:'recovery',name:'Chiyo Shuzenji',role:'Staff',pw:'Heal',pwd:'Amplifies a person\'s natural healing process with a kiss, using their stamina.',fav:'tea',hs:'buns',bang:'swept',hair:'#cfd4dc',skin:'#fbdcc4',eye:'#5c4938',acc:['visor','pin'],fit:'scrub',outfit:'#fff5f8',trim:'#ff85a8',spark:'#ff5d8f',bg:'#f7c6d7',expr:'smile',
+ intro:"I'm Chiyo Shuzenji-Recovery Girl! U.A.'s school nurse, here with gummies and warm tea.",
+ L:{greet:["Hello, dearie! Have you been resting properly between rush hours?","Good afternoon! Nobody's overdoing it with their Quirks in here, I hope!"],
+ power:["Heal! With a gentle kiss, I accelerate a person's recovery-though it uses up their own stamina, so rest and snacks are essential!","I patch up U.A.'s most reckless students every single day. Midoriya alone keeps me busy!"],
+ joke:["What did Recovery Girl say to the exhausted hero-in-training? Take two gummies and a nap!","Why do teacups never get injured? Because they know how to handle a steep drop!"],
+ day:["Busy as ever! Aizawa's class finished training with only minor scrapes today-a rare miracle."],dream:["To keep every bright young hero healthy enough to see their dreams come true!"],
+ fav:["Green Tea! Soothing, gentle, and wonderful for restoring tired spirits."],thanks:["Thank you kindly, dear! Here, have a gummy!"],bye:["Take care of yourself, sweetheart! Don't skip your breaks!"],compliment:["Oh, you're a polite one! Makes this old nurse very happy."],
+ cafe:["Warm tea, soft chairs, and a cozy atmosphere-better medicine than anything in my clinic!"],fallback:["Now that's very sensible, dear.","Make sure you pace yourself, alright?","Mm-hm, I'm listening, sweetheart."]}},
+
+{id:'vlad',name:'Sekijiro Kan',role:'Staff',pw:'Blood Control',pwd:'Manipulates his own blood outside his body, hardening it into shapes.',fav:'coffee',hs:'spiky',bang:'zig',hair:'#dce2eb',skin:'#f4cfb6',eye:'#b91c1c',acc:['scar'],fit:'vest',outfit:'#7f1d1d',trim:'#fde68a',spark:'#ef4444',bg:'#e8a5a5',expr:'grin',
+ intro:"Sekijiro Kan-Vlad King! Proud homeroom teacher of Class 1-B!",
+ L:{greet:["Hahaha! Good afternoon! Class 1-B could learn a thing or two from your work ethic!","Hey there! Great to see a caf� with real team spirit!"],
+ power:["Blood Control! I can manipulate and solidify my own blood to bind foes or shield allies. Sounds intense, right? Under the armor, I'm a softie for my students!","My Quirk is all about protection and restraint-and keeping Class 1-B ahead of Class 1-A!"],
+ joke:["Why is Class 1-B better at running a caf� than Class 1-A? Because we never blow up the kitchen! Hahaha!","What does Vlad King put in his coffee? Extra heart!"],
+ day:["Fantastic! Class 1-B aced their joint drills today-don't let Aizawa tell you otherwise!"],dream:["To guide every single student in Class 1-B into becoming top-tier, dependable heroes!"],
+ fav:["Honey Latte! Strong espresso with just enough sweetness to power through grading!"],thanks:["Much appreciated! Top-notch service!"],bye:["Keep up the great work! Class 1-B is rooting for you!"],compliment:["Haha! You've got a sharp eye! Tell Aizawa I said hi!"],
+ cafe:["Solid, welcoming, and well-organized-a great spot for teachers to unwind!"],fallback:["Hahaha! Well said!","That's the kind of spirit I like to see!","Go on, I'm all ears!"]}},
+
+{id:'cementoss',name:'Ken Ishiyama',role:'Staff',pw:'Cement',pwd:'Controls and reshapes any cement-based material he touches like clay.',fav:'cookie',hs:'rock',bang:'none',hair:'#b8bec9',skin:'#c4cad4',eye:'#374151',acc:[],fit:'vest',outfit:'#92623a',trim:'#fef3c7',spark:'#9ca3af',bg:'#cbd5e1',expr:'smile',
+ intro:"Ken Ishiyama-Cementoss. I teach Modern Literature at U.A. High. Care for a quiet chat?",
+ L:{greet:["Good day. A well-structured caf� builds a strong foundation for community.","Hello there. It's nice to step away from the training grounds for a quiet snack."],
+ power:["Cement! Anything made of cement becomes like clay in my hands. Handy for building arenas-and fixing cracked sidewalks!","My Quirk is best for defense, containment, and construction. Slow, steady, and reliable."],
+ joke:["Why did Cementoss make a great literature teacher? Because he always builds a solid plot!","What do you call a cookie baked by a rock hero? Concrete-chip! ...Hm, perhaps too crunchy."],
+ day:["Thoughtful and steady. We analyzed classic heroic poetry in Modern Literature today."],dream:["To build a foundation of wisdom and safety that future generations can stand upon."],
+ fav:["Choco Cookies! Crisp on the outside, soft on the inside-a sturdy classic."],thanks:["Thank you very much. Well crafted."],bye:["Farewell. Keep building great things!"],compliment:["Thank you. Kindness is the cornerstone of any great hero."],
+ cafe:["Clean lines, warm wood, and a peaceful rhythm. Very well built."],fallback:["A solid point.","Hm, that's worth reflecting on.","Indeed. Please continue."]}},
+];
+CAST.forEach((c,i)=>{c.seed=i*397+211;c._i={};});
+const line=(c,k)=>{const a=c.L[k];if(!a)return '';const i=c._i[k]||0;c._i[k]=i+1;return a[i%a.length];};
+
+/* ---------- chibi drawing (units of head half-width) ---------- */
+function shade(h,f){const n=parseInt(h.slice(1),16);let r=n>>16,g=(n>>8)&255,b=n&255;
+  if(f<0){r*=1+f;g*=1+f;b*=1+f;}else{r+=(255-r)*f;g+=(255-g)*f;b+=(255-b)*f;}return 'rgb('+(r|0)+','+(g|0)+','+(b|0)+')';}
+function rrp(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function rrPath(x,y,w,h,r){const p=new Path2D();p.moveTo(x+r,y);p.arcTo(x+w,y,x+w,y+h,r);p.arcTo(x+w,y+h,x,y+h,r);p.arcTo(x,y+h,x,y,r);p.arcTo(x,y,x+w,y,r);p.closePath();return p;}
+const circ=(x,y,r)=>{const p=new Path2D();p.arc(x,y,r,0,TAU);return p;};
+const ell=(x,y,rx,ry)=>{const p=new Path2D();p.ellipse(x,y,rx,ry,0,0,TAU);return p;};
+const poly=pts=>{const p=new Path2D();p.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)p.lineTo(pts[i][0],pts[i][1]);p.closePath();return p;};
+
+function drawEye(ctx,c,x,s,e,blink){
+  ctx.save();ctx.translate(x,0.1);
+  const eyeCol=(s>0&&c.eye2)?c.eye2:c.eye;
+  const darkSclera=(c.acc||[]).indexOf('blackSclera')>=0;
+  if(blink||e==='happy'){ctx.strokeStyle=INK;ctx.lineWidth=0.07;ctx.beginPath();
+    if(e==='happy')ctx.arc(0,0.08,0.17,Math.PI*1.08,Math.PI*1.92);else{ctx.moveTo(-0.17,0.04);ctx.quadraticCurveTo(0,0.14,0.17,0.04);}
+    ctx.stroke();ctx.restore();return;}
+  let rx=0.2,ry=0.26;if(e==='smug')ry=0.2;if(e==='wow'){rx=0.22;ry=0.29;}
+  ctx.fillStyle=darkSclera?'#23202b':'#fff';ctx.strokeStyle=INK;ctx.lineWidth=0.045;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();ctx.stroke();
+  ctx.save();ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.clip();
+  const ir=e==='wow'?0.12:0.155,iy=e==='wow'?0.17:ry*0.92;
+  ctx.fillStyle=eyeCol;ctx.beginPath();ctx.ellipse(0.01*s,0.03,ir,iy,0,0,TAU);ctx.fill();
+  ctx.fillStyle=INK;ctx.beginPath();ctx.ellipse(0.01*s,0.04,ir*0.5,iy*0.55,0,0,TAU);ctx.fill();
+  if(e==='sleepy'){ctx.fillStyle=c.skin;ctx.fillRect(-rx,-ry,rx*2,ry);}
+  if(e==='smug'){ctx.fillStyle=c.skin;ctx.fillRect(-rx,-ry,rx*2,ry*0.62);}
+  ctx.restore();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(-0.06,-0.06,0.055,0,TAU);ctx.arc(0.07,0.1,0.028,0,TAU);ctx.fill();
+  ctx.strokeStyle=INK;ctx.lineWidth=0.07;ctx.beginPath();
+  if(e==='sleepy'){ctx.moveTo(-rx,0);ctx.lineTo(rx,0);}
+  else if(e==='smug'){ctx.moveTo(-rx,-ry*0.3);ctx.lineTo(rx,-ry*0.3);}
+  else ctx.ellipse(0,0,rx,ry,0,Math.PI*1.1,Math.PI*1.9);
+  ctx.stroke();ctx.restore();
+}
+function drawMouth(ctx,e){
+  ctx.save();ctx.translate(0,0.58);ctx.strokeStyle=INK;ctx.lineWidth=0.055;ctx.beginPath();
+  if(e==='grin'||e==='happy'){ctx.fillStyle='#7a2b3a';ctx.moveTo(-0.26,-0.04);ctx.quadraticCurveTo(0,0.02,0.26,-0.04);ctx.quadraticCurveTo(0.2,0.3,0,0.3);ctx.quadraticCurveTo(-0.2,0.3,-0.26,-0.04);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#ff8fa3';ctx.beginPath();ctx.ellipse(0,0.22,0.1,0.06,0,0,TAU);ctx.fill();}
+  else if(e==='wow'){ctx.fillStyle='#7a2b3a';ctx.ellipse(0,0.08,0.09,0.12,0,0,TAU);ctx.fill();ctx.stroke();}
+  else if(e==='smug'){ctx.moveTo(-0.16,0.04);ctx.quadraticCurveTo(0.05,0.14,0.2,-0.04);ctx.stroke();}
+  else if(e==='sleepy'){ctx.moveTo(-0.1,0.06);ctx.lineTo(0.1,0.06);ctx.stroke();}
+  else if(e==='shy'){ctx.moveTo(-0.15,0.05);ctx.quadraticCurveTo(-0.07,0,0,0.05);ctx.quadraticCurveTo(0.07,0.1,0.15,0.05);ctx.stroke();}
+  else{ctx.moveTo(-0.14,0);ctx.quadraticCurveTo(0,0.16,0.14,0);ctx.stroke();}
+  ctx.restore();
+}
+
+function drawChar(ctx,c,cx,cy,R,mode,expr,tm,o){
+  o=o||{};
+  const blink=o.blink!==undefined?o.blink:(((tm*1000)+c.seed)%4300<130);
+  const walk=o.walk||0,e=expr||c.expr,acc=c.acc||[],has=a=>acc.indexOf(a)>=0,hair=c.hair;
+  ctx.save();ctx.translate(cx,cy);ctx.scale(R,R);ctx.lineJoin='round';ctx.lineCap='round';
+  const ops=[];
+  const add=(path,fill,st)=>ops.push({path,fill,st:st!==false});
+  const fn=f=>ops.push({fn:f});
+  // back hair
+  const cap=()=>add(ell(0,-0.06,1.1,1.0),hair);
+  switch(c.hs){
+    case 'bob':add(ell(0,0.1,1.2,1.08),hair);break;
+    case 'long':{const p=new Path2D();p.moveTo(-1.2,0.1);p.bezierCurveTo(-1.25,-0.95,-0.65,-1.12,0,-1.12);p.bezierCurveTo(0.65,-1.12,1.25,-0.95,1.2,0.1);p.lineTo(1.25,1.7);p.quadraticCurveTo(0,1.95,-1.25,1.7);p.closePath();add(p,hair);break;}
+    case 'buns':add(circ(-0.92,-0.82,0.4),hair);add(circ(0.92,-0.82,0.4),hair);cap();break;
+    case 'tail':{const p=new Path2D();p.moveTo(0.8,-0.75);p.bezierCurveTo(1.5,-0.95,1.65,0.1,1.4,1.2);p.bezierCurveTo(1.25,0.5,1.1,0.1,0.8,-0.05);p.closePath();add(p,hair);cap();break;}
+    case 'spiky':add(poly([[-1.12,0.25],[-1.4,-0.3],[-1.0,-0.4],[-1.2,-1.0],[-0.7,-0.85],[-0.7,-1.4],[-0.25,-1.0],[0,-1.55],[0.3,-1.0],[0.75,-1.4],[0.75,-0.85],[1.2,-1.0],[1.0,-0.4],[1.4,-0.3],[1.12,0.25]]),hair);break;
+    case 'tall':add(poly([[-1.1,0.1],[-1.3,-0.6],[-0.8,-0.5],[-0.9,-1.4],[-0.35,-0.95],[0,-1.6],[0.35,-0.95],[0.9,-1.4],[0.8,-0.5],[1.3,-0.6],[1.1,0.1]]),hair);break;
+    case 'messy':add(poly([[-1.1,0.2],[-1.3,-0.2],[-1.05,-0.45],[-1.15,-0.85],[-0.7,-0.8],[-0.5,-1.2],[-0.15,-0.95],[0.2,-1.25],[0.5,-0.95],[0.9,-1.1],[0.95,-0.65],[1.3,-0.5],[1.1,-0.15],[1.2,0.2]]),hair);break;
+    case 'curly':{cap();for(let i=0;i<9;i++){const a=Math.PI*(1.0+i/8*1.0)+(i===0?-0.5:0)+(i===8?0.5:0);add(circ(Math.cos(a)*1.0,Math.sin(a)*0.95-0.05,0.4),hair);}add(circ(-1.12,0.35,0.34),hair);add(circ(1.12,0.35,0.34),hair);break;}
+    case 'bird':{add(poly([[-1.08,0.25],[-1.28,-0.15],[-1.05,-0.35],[-1.18,-0.8],[-0.72,-0.75],[-0.45,-1.18],[0,-0.98],[0.45,-1.18],[0.72,-0.75],[1.18,-0.8],[1.05,-0.35],[1.28,-0.15],[1.08,0.25]]),hair);break;}
+    case 'rock':{add(poly([[-1.02,0.15],[-1.1,-0.45],[-0.72,-0.92],[0,-1.1],[0.72,-0.92],[1.1,-0.45],[1.02,0.15]]),hair);break;}
+    default:cap();
+  }
+  if(c.hair2){
+    fn(x=>{x.save();x.beginPath();x.rect(0,-2,2.2,4.2);x.clip();x.fillStyle=c.hair2;x.beginPath();x.ellipse(0,-0.06,1.1,1.0,0,0,TAU);x.fill();x.restore();});
+  }
+  if(['neat','spiky','tall','messy','tail'].indexOf(c.hs)>=0){add(circ(-1.0,0.15,0.17),c.skin);add(circ(1.0,0.15,0.17),c.skin);}
+  // body
+  if(mode==='bust'){
+    const b=new Path2D();b.moveTo(-1.55,3.4);b.lineTo(-1.5,1.85);b.bezierCurveTo(-1.45,1.2,-0.75,0.95,0,0.95);b.bezierCurveTo(0.75,0.95,1.45,1.2,1.5,1.85);b.lineTo(1.55,3.4);b.closePath();add(b,c.outfit);
+    fn(x=>{x.lineWidth=0.045;x.strokeStyle=INK;
+      if(c.fit==='vest'){x.fillStyle=c.trim;x.beginPath();x.moveTo(-0.5,0.97);x.lineTo(0,2.1);x.lineTo(0.5,0.97);x.closePath();x.fill();x.stroke();}
+      if(c.fit==='scrub'){x.fillStyle=c.skin;x.beginPath();x.moveTo(-0.42,0.97);x.lineTo(0,1.55);x.lineTo(0.42,0.97);x.closePath();x.fill();x.stroke();}
+      if(c.fit==='track'){x.beginPath();x.moveTo(0,1.15);x.lineTo(0,3.4);x.stroke();x.fillStyle=shade(c.outfit,-0.2);x.beginPath();x.ellipse(0,1.05,0.45,0.13,0,0,TAU);x.fill();x.stroke();}
+      if(c.fit==='ribbon'||c.fit==='vest'){x.fillStyle=c.trim;
+        if(c.fit==='ribbon'){for(const s of[-1,1]){x.beginPath();x.moveTo(s*0.6,1.0);x.lineTo(s*0.05,1.0);x.lineTo(s*0.32,1.5);x.closePath();x.fill();x.stroke();}}
+        x.fillStyle=c.spark;for(const s of[-1,1]){x.beginPath();x.moveTo(0,1.22);x.lineTo(s*0.34,1.08);x.lineTo(s*0.34,1.36);x.closePath();x.fill();x.stroke();}
+        x.beginPath();x.arc(0,1.22,0.1,0,TAU);x.fill();x.stroke();}
+      if(has('choker')){x.fillStyle='#d63a63';x.beginPath();x.rect(-0.52,0.9,1.04,0.22);x.fill();x.stroke();x.fillStyle='#ffd54f';x.beginPath();x.arc(0,1.01,0.08,0,TAU);x.fill();x.stroke();}
+      if(has('scarf')){x.fillStyle='#dfe3ee';x.strokeStyle=INK;x.lineWidth=0.05;
+        rrp(x,-1.18,0.74,2.36,0.42,0.2);x.fill();x.stroke();
+        rrp(x,-1.02,1.02,2.04,0.38,0.18);x.fill();x.stroke();
+        rrp(x,0.36,1.25,0.44,1.2,0.12);x.fill();x.stroke();}
+      if(has('pin')){x.fillStyle='#fff';x.beginPath();x.arc(0.65,1.85,0.2,0,TAU);x.fill();x.stroke();x.strokeStyle='#e5484d';x.lineWidth=0.07;x.beginPath();x.moveTo(0.65,1.74);x.lineTo(0.65,1.96);x.moveTo(0.54,1.85);x.lineTo(0.76,1.85);x.stroke();}
+    });
+  }else{
+    const sw=walk*TAU;const pants=c.pants||shade(c.outfit,-0.35);
+    for(const s of[-1,1]){const lift=Math.max(0,Math.sin(sw+(s>0?0:Math.PI)))*0.2;
+      add(rrPath(s*0.3-0.14,1.6-lift,0.28,0.5,0.1),pants);add(ell(s*0.3,2.12-lift,0.21,0.11),'#fff');}
+    add(rrPath(-0.55,0.82,1.1,0.9,0.28),c.outfit);
+    for(const s of[-1,1]){const dy=Math.sin(sw+(s>0?0:Math.PI))*0.12;const a=new Path2D();a.ellipse(s*0.66,1.25+dy,0.15,0.3,s*0.25,0,TAU);add(a,c.outfit);add(circ(s*0.72,1.56+dy,0.12),c.skin);}
+    fn(x=>{x.fillStyle=c.fit==='track'?c.trim:c.spark;x.lineWidth=0.04;x.strokeStyle=INK;x.beginPath();x.arc(0,1.0,0.1,0,TAU);x.fill();x.stroke();
+      if(has('scarf')){x.fillStyle='#dfe3ee';rrp(x,-0.68,0.72,1.36,0.28,0.13);x.fill();x.stroke();}});
+  }
+  // head + face
+  add(ell(0,0,1.0,0.92),c.skin);
+  fn(x=>{
+    if(has('scar')){
+      x.fillStyle='rgba(198,62,74,0.42)';
+      x.beginPath();x.ellipse(0.47,0.12,0.34,0.28,0.15,0,TAU);x.fill();
+    }
+    x.fillStyle='rgba(255,110,140,0.34)';
+    if(c.id==='uraraka'){x.fillStyle='rgba(255,95,145,0.56)';for(const s of[-1,1]){x.beginPath();x.arc(s*0.65,0.44,0.16,0,TAU);x.fill();}}
+    else if(!has('beak')){for(const s of[-1,1]){x.beginPath();x.ellipse(s*0.68,0.45,0.17,0.1,0,0,TAU);x.fill();}}
+    if(has('freckles')){x.fillStyle='#8b634b';for(const s of[-1,1])for(const p of[[0.46,0.36],[0.62,0.32],[0.54,0.46],[0.72,0.42]]){x.beginPath();x.arc(s*p[0],p[1],0.036,0,TAU);x.fill();}}
+    if(has('bag')){x.strokeStyle='#7c6c8a';x.lineWidth=0.05;for(const s of[-1,1]){x.beginPath();x.moveTo(s*0.44-0.16,0.38);x.quadraticCurveTo(s*0.44,0.47,s*0.44+0.16,0.38);x.stroke();}}
+    drawEye(x,c,-0.44,-1,e,blink);drawEye(x,c,0.44,1,e,blink);
+    if(has('beak')){
+      x.fillStyle='#f6b846';x.strokeStyle=INK;x.lineWidth=0.05;
+      x.beginPath();x.moveTo(-0.24,0.42);x.quadraticCurveTo(0,0.22,0.24,0.42);x.quadraticCurveTo(0,0.68,-0.24,0.42);x.closePath();x.fill();x.stroke();
+      x.beginPath();x.moveTo(-0.18,0.46);x.quadraticCurveTo(0,0.52,0.18,0.46);x.stroke();
+    }else if(has('mask')){
+      x.fillStyle='#3a4257';x.strokeStyle=INK;x.lineWidth=0.05;
+      x.beginPath();x.moveTo(-0.88,0.32);x.quadraticCurveTo(0,0.26,0.88,0.32);x.quadraticCurveTo(0.84,0.88,0,0.92);x.quadraticCurveTo(-0.84,0.88,-0.88,0.32);x.closePath();x.fill();x.stroke();
+      x.strokeStyle='#6d7996';x.lineWidth=0.04;x.beginPath();x.moveTo(-0.35,0.48);x.lineTo(-0.35,0.78);x.moveTo(0.35,0.48);x.lineTo(0.35,0.78);x.stroke();
+    }else{
+      drawMouth(x,e);
+    }
+    if(has('stache')){x.fillStyle=shade(hair,-0.15);x.strokeStyle=INK;x.lineWidth=0.045;for(const s of[-1,1]){x.beginPath();x.moveTo(0,0.4);x.quadraticCurveTo(s*0.2,0.3,s*0.4,0.47);x.quadraticCurveTo(s*0.2,0.52,0,0.47);x.closePath();x.fill();x.stroke();}}
+    if(has('bandage')){x.save();x.translate(-0.6,0.5);x.rotate(-0.5);x.fillStyle='#f8dcc0';x.strokeStyle=INK;x.lineWidth=0.04;x.fillRect(-0.2,-0.07,0.4,0.14);x.strokeRect(-0.2,-0.07,0.4,0.14);x.restore();}
+  });
+  // front hair
+  if(c.bang!=='none'){
+    const f=new Path2D();f.moveTo(-1.02,-0.02);f.bezierCurveTo(-1.12,-0.95,-0.55,-1.08,0,-1.08);f.bezierCurveTo(0.55,-1.08,1.12,-0.95,1.02,-0.02);
+    if(c.bang==='straight'){f.quadraticCurveTo(0.8,-0.02,0.5,-0.32);f.quadraticCurveTo(0.25,0,0,-0.34);f.quadraticCurveTo(-0.25,0,-0.5,-0.32);f.quadraticCurveTo(-0.8,-0.02,-1.02,-0.02);add(f,hair);}
+    else if(c.bang==='zig'){[[0.85,-0.38],[0.62,-0.12],[0.42,-0.45],[0.18,-0.12],[-0.05,-0.5],[-0.28,-0.12],[-0.5,-0.42],[-0.72,-0.1],[-0.88,-0.36],[-1.02,-0.02]].forEach(p=>f.lineTo(p[0],p[1]));add(f,hair);}
+    else if(c.bang==='swept'){f.quadraticCurveTo(0.9,-0.38,0.5,-0.4);f.quadraticCurveTo(0.1,-0.42,-0.25,-0.75);f.quadraticCurveTo(-0.4,-0.3,-0.7,-0.2);f.quadraticCurveTo(-0.95,-0.12,-1.02,-0.02);add(f,hair);}
+    else{[[-0.62,-0.62],[-0.2,-0.82],[0.25,-0.82],[0.65,-0.6]].forEach(p=>add(circ(p[0],p[1],0.34),hair));add(circ(-0.9,-0.25,0.2),hair);add(circ(0.9,-0.25,0.2),hair);}
+  }
+  fn(x=>{
+    if(c.hair2&&c.bang==='swept'){
+      x.save();x.beginPath();x.rect(0,-1.5,1.5,1.6);x.clip();
+      x.fillStyle=c.hair2;x.strokeStyle=INK;x.lineWidth=0.05;
+      x.beginPath();x.moveTo(0,-1.08);x.bezierCurveTo(0.55,-1.08,1.12,-0.95,1.02,-0.02);x.quadraticCurveTo(0.9,-0.38,0.5,-0.4);x.quadraticCurveTo(0.1,-0.42,0,-0.6);x.closePath();x.fill();x.stroke();
+      x.restore();
+    }
+    if(c.bang!=='curly'&&c.bang!=='none'){x.strokeStyle=shade(hair,0.5);x.lineWidth=0.07;x.beginPath();x.moveTo(-0.62,-0.78);x.quadraticCurveTo(-0.35,-0.97,-0.08,-0.95);x.stroke();}
+    if(!has('beak')){x.strokeStyle=c.spark;x.lineWidth=0.05;for(const d of[[0.55,-0.72,0.12],[-0.82,-0.5,0.09]]){x.save();x.translate(d[0],d[1]);x.rotate(0.6);x.strokeRect(-d[2],-d[2],d[2]*2,d[2]*2);x.restore();}}
+    // brows
+    const k={smug:[0.08,-0.05],sleepy:[-0.03,0.02],shy:[-0.08,0.02],wow:[-0.1,-0.12]}[e]||[0,0];
+    x.strokeStyle=shade(hair,-0.45);x.lineWidth=0.06;for(const s of[-1,1]){x.beginPath();x.moveTo(s*0.26,-0.3+k[0]);x.lineTo(s*0.62,-0.34+k[1]);x.stroke();}
+    if(has('minaHorns')){
+      x.fillStyle='#ffe14d';x.strokeStyle=INK;x.lineWidth=0.05;
+      for(const s of[-1,1]){x.beginPath();x.moveTo(s*0.42,-0.78);x.quadraticCurveTo(s*0.62,-1.28,s*0.76,-1.18);x.quadraticCurveTo(s*0.84,-1.06,s*0.66,-0.72);x.closePath();x.fill();x.stroke();}
+    }
+    if(has('kodaHorns')){
+      x.fillStyle='#e5a46b';x.strokeStyle=INK;x.lineWidth=0.05;
+      for(const s of[-1,1]){x.beginPath();x.moveTo(s*0.35,-0.92);x.lineTo(s*0.48,-1.3);x.lineTo(s*0.66,-0.84);x.closePath();x.fill();x.stroke();}
+      x.beginPath();x.moveTo(-0.15,-0.96);x.lineTo(0,-1.32);x.lineTo(0.15,-0.96);x.closePath();x.fill();x.stroke();
+    }
+    if(has('tsuyuBow')){
+      x.fillStyle='#294d3a';x.strokeStyle=INK;x.lineWidth=0.05;
+      for(const s of[-1,1]){x.beginPath();x.moveTo(0,1.38);x.lineTo(s*0.42,1.22);x.lineTo(s*0.42,1.54);x.closePath();x.fill();x.stroke();}
+      x.beginPath();x.arc(0,1.38,0.11,0,TAU);x.fill();x.stroke();
+    }
+    if(has('midnightMask')){
+      x.fillStyle='#e84393';x.strokeStyle=INK;x.lineWidth=0.05;
+      x.beginPath();x.moveTo(-0.88,0.02);x.quadraticCurveTo(-0.45,-0.22,0,0.04);x.quadraticCurveTo(0.45,-0.22,0.88,0.02);
+      x.quadraticCurveTo(0.75,0.34,0,0.24);x.quadraticCurveTo(-0.75,0.34,-0.88,0.02);x.closePath();x.fill();x.stroke();
+      x.fillStyle='#fff';for(const s of[-1,1]){x.beginPath();x.ellipse(s*0.44,0.1,0.19,0.13,0,0,TAU);x.fill();x.stroke();}
+    }
+    if(has('visor')){
+      x.fillStyle='#ff85a8';x.strokeStyle=INK;x.lineWidth=0.05;
+      rrp(x,-0.78,-0.55,1.56,0.22,0.1);x.fill();x.stroke();
+      x.fillStyle='rgba(120,220,255,0.55)';rrp(x,-0.68,-0.33,1.36,0.26,0.08);x.fill();x.stroke();
+    }
+    if(has('glasses')){
+      if(c.id==='mic'){
+        x.fillStyle='#ff9838';x.strokeStyle=INK;x.lineWidth=0.055;
+        for(const s of[-1,1]){x.beginPath();x.moveTo(s*0.12,0.02);x.lineTo(s*0.78,-0.08);x.lineTo(s*0.7,0.28);x.lineTo(s*0.16,0.24);x.closePath();x.fill();x.stroke();}
+        x.beginPath();x.moveTo(-0.12,0.08);x.lineTo(0.12,0.08);x.stroke();
+      }else{
+        x.strokeStyle=INK;x.lineWidth=0.06;x.fillStyle='rgba(255,255,255,0.22)';for(const s of[-1,1]){x.beginPath();x.arc(s*0.44,0.1,0.33,0,TAU);x.fill();x.stroke();}x.beginPath();x.moveTo(-0.11,0.08);x.lineTo(0.11,0.08);x.stroke();
+      }
+    }
+    if(has('headband')){x.lineCap='butt';x.strokeStyle=INK;x.lineWidth=0.25;x.beginPath();x.moveTo(-1.0,-0.4);x.quadraticCurveTo(0,-0.95,1.0,-0.4);x.stroke();x.strokeStyle=c.band;x.lineWidth=0.16;x.stroke();}
+    if(has('headphones')){
+      const bCol=c.band||'#e5484d';
+      x.lineCap='butt';x.strokeStyle=INK;x.lineWidth=0.25;x.beginPath();x.moveTo(-1.06,0.1);x.bezierCurveTo(-1.15,-1.45,1.15,-1.45,1.06,0.1);x.stroke();x.strokeStyle=bCol;x.lineWidth=0.15;x.stroke();
+      x.fillStyle=bCol;x.lineWidth=0.05;for(const s of[-1,1]){x.beginPath();x.ellipse(s*1.06,0.2,0.17,0.28,0,0,TAU);x.fill();x.stroke();}}
+    if(has('scrunchie')){x.fillStyle=c.scr;x.lineWidth=0.045;x.strokeStyle=INK;x.beginPath();x.arc(0.88,-0.55,0.15,0,TAU);x.fill();x.stroke();}
+    if(has('bow')){x.fillStyle=c.spark;x.lineWidth=0.045;x.strokeStyle=INK;for(const s of[-1,1]){x.beginPath();x.moveTo(0.72,-0.82);x.lineTo(0.72+s*0.34,-1.0);x.lineTo(0.72+s*0.34,-0.64);x.closePath();x.fill();x.stroke();}x.beginPath();x.arc(0.72,-0.82,0.1,0,TAU);x.fill();x.stroke();}
+    if(has('flower')){x.lineWidth=0.04;x.strokeStyle=INK;x.fillStyle='#ff9ec0';for(let i=0;i<5;i++){const a=i/5*TAU;x.beginPath();x.arc(-0.78+Math.cos(a)*0.11,-0.6+Math.sin(a)*0.11,0.09,0,TAU);x.fill();x.stroke();}x.fillStyle='#ffe066';x.beginPath();x.arc(-0.78,-0.6,0.07,0,TAU);x.fill();}
+  });
+  // sticker outline pass, then colour pass
+  ctx.fillStyle='#fff';ctx.strokeStyle='#fff';ctx.lineWidth=0.2;
+  for(const op of ops)if(op.path&&op.st){ctx.fill(op.path);ctx.stroke(op.path);}
+  ctx.strokeStyle=INK;ctx.lineWidth=0.05;
+  for(const op of ops){if(op.path){ctx.fillStyle=op.fill;ctx.fill(op.path);ctx.stroke(op.path);}else{ctx.save();op.fn(ctx);ctx.restore();}}
+  ctx.restore();
+}
+
+function drawPortrait(cv,c,expr){
+  const S=cv.width,x=cv.getContext('2d');x.setTransform(1,0,0,1,0,0);x.clearRect(0,0,S,S);
+  x.fillStyle=c.bg;x.fillRect(0,0,S,S);
+  const g=x.createRadialGradient(S*0.3,S*0.2,0,S*0.3,S*0.2,S*0.9);g.addColorStop(0,'rgba(255,255,255,.35)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,S,S);
+  drawChar(x,c,S*0.5,S*0.47,S*0.32,'bust',expr||c.expr,0,{blink:false});
+}
+
+function icon(ctx,id,x,y,s){
+  ctx.save();ctx.translate(x,y);ctx.scale(s,s);ctx.lineJoin='round';ctx.lineCap='round';ctx.lineWidth=0.1;ctx.strokeStyle=INK;
+  if(id==='tea'||id==='coffee'){
+    const tea=id==='tea';
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(0,0.72,1.1,0.26,0,0,TAU);ctx.fill();ctx.stroke();
+    ctx.fillStyle=tea?'#fff':'#c58a5b';ctx.beginPath();ctx.moveTo(-0.75,-0.35);ctx.lineTo(0.75,-0.35);ctx.quadraticCurveTo(0.7,0.7,0,0.7);ctx.quadraticCurveTo(-0.7,0.7,-0.75,-0.35);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.fillStyle=tea?'#a6dc8f':'#f3dcc0';ctx.beginPath();ctx.ellipse(0,-0.35,0.75,0.18,0,0,TAU);ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.arc(0.8,0.05,0.3,-1.2,1.4);ctx.stroke();
+    ctx.strokeStyle='rgba(120,120,150,.7)';ctx.lineWidth=0.08;ctx.beginPath();ctx.moveTo(-0.2,-0.7);ctx.quadraticCurveTo(-0.45,-0.95,-0.2,-1.2);ctx.moveTo(0.25,-0.7);ctx.quadraticCurveTo(0,-0.95,0.25,-1.2);ctx.stroke();
+  }else if(id==='cake'){
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(0,0.8,1.15,0.25,0,0,TAU);ctx.fill();ctx.stroke();
+    rrp(ctx,-0.85,-0.05,1.7,0.8,0.15);ctx.fillStyle='#ffc9d8';ctx.fill();ctx.stroke();
+    ctx.fillStyle='#fff';ctx.fillRect(-0.84,0.25,1.68,0.16);
+    rrp(ctx,-0.9,-0.3,1.8,0.3,0.14);ctx.fillStyle='#fff6f8';ctx.fill();ctx.stroke();
+    ctx.fillStyle='#ff4d6d';ctx.beginPath();ctx.arc(0,-0.52,0.3,0,TAU);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#5fbf6a';ctx.beginPath();ctx.ellipse(0,-0.82,0.16,0.07,0,0,TAU);ctx.fill();
+  }else{
+    ctx.fillStyle='#e3b273';ctx.beginPath();ctx.arc(0,0.1,0.9,0,TAU);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#6b4226';[[-0.3,-0.2],[0.3,-0.05],[-0.1,0.4],[0.35,0.5],[-0.5,0.3],[0.05,0.0]].forEach(p=>{ctx.beginPath();ctx.arc(p[0],p[1],0.13,0,TAU);ctx.fill();});
+  }
+  ctx.restore();
+}
+
+/* ---------- game ---------- */
+const W=640,H=480;
+const TABLES=[{x:165,y:300},{x:475,y:300},{x:165,y:420},{x:475,y:420}];
+const STATIONS=[{id:'tea',x:235},{id:'coffee',x:295},{id:'cake',x:355},{id:'cookie',x:415}];
+const WORK_SPOTS=[{x:320,y:232},{x:260,y:235},{x:380,y:235},{x:320,y:262}];
+const BREAK_SPOTS=[{x:282,y:348},{x:358,y:348},{x:305,y:366},{x:335,y:366}];
+const P_COLORS=['#d63a63','#2563eb','#0d9488','#d97706'];
+const STAR_AT=[100,250,500];
+const G={run:false,t:0,score:0,served:0,streak:0,players:1,squad:[],activeIdx:0,customers:[],spawnT:1,chatOpen:false,floaters:[],parts:[],friends:new Set(),stars:0,best:0,catT:0,banterT:2.5,banterPair:null,banterLine:null,banterSpeaker:null,banterBubbleT:0};
+try{G.best=+localStorage.getItem('heroLoungeBest')||0;}catch(e){}
+const activeMember=()=>G.squad[G.activeIdx]||G.squad[0];
+const isCoopPlayer=i=>i<G.players;
+const pInput=[
+  {left:false,right:false,up:false,down:false},
+  {left:false,right:false,up:false,down:false},
+  {left:false,right:false,up:false,down:false},
+  {left:false,right:false,up:false,down:false}
+];
+
+let gameFrame=0;
+let nativeX=0,nativeY=0,nativePaused=false,nativeInteraction='';
+const android=window.HeroLoungeAndroid;
+function syncNativeControls(){
+  if(!android)return;
+  nativeX=nativeY=0;
+  nativeInteraction='';
+  android.state(G.run,G.chatOpen,G.squad.length>1);
+}
+if(android){
+  document.body.classList.add('android-app');
+  document.querySelector('.controls p').textContent='Move with the left joystick. Use Grab / Serve, Chat, Switch and Break with your right thumb. Local co-op uses a physical keyboard for additional players.';
+  window.loungeControls={
+    move(x,y){if(G.run&&!G.chatOpen&&!nativePaused){nativeX=x;nativeY=y;}},
+    pause(paused){
+      nativePaused=paused;
+      nativeX=nativeY=0;
+      pInput.forEach(k=>{k.left=k.right=k.up=k.down=false;});
+    },
+    back(){if(G.chatOpen)closeChat();else if(G.run)stopGame();},
+    action(action){
+      if(!G.run||G.chatOpen||nativePaused)return;
+      if(action==='interact')act();
+      if(action==='chat')chatNear();
+      if(action==='switch'&&G.squad.length>1)switchHero((G.activeIdx+1)%G.squad.length,false);
+      if(action==='break')toggleBreak(G.activeIdx);
+    }
+  };
+}
+
+const cv=$('#cv');cv.width=W*DPR;cv.height=H*DPR;
+const ctx=cv.getContext('2d');
+let BG=null;
+
+let AC=null,soundOn=true;
+function sfx(type){if(!soundOn)return;try{
+  AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+  if(AC.state==='suspended')AC.resume().catch(()=>{});
+  const seq={pop:[[660,.06],[880,.08]],ding:[[880,.09],[1320,.2]],grab:[[520,.07]],bye:[[440,.1],[330,.16]],star:[[660,.1],[880,.1],[1175,.22]],blip:[[760,.05]]}[type];
+  let at=AC.currentTime;
+  seq.forEach(n=>{const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.value=n[0];
+    g.gain.setValueAtTime(0.0001,at);g.gain.exponentialRampToValueAtTime(0.12,at+0.01);g.gain.exponentialRampToValueAtTime(0.0001,at+n[1]);
+    o.connect(g);g.connect(AC.destination);o.start(at);o.stop(at+n[1]+0.03);at+=n[1]*0.8;});
+}catch(e){}}
+
+function buildBG(){
+  const c=document.createElement('canvas');c.width=W*DPR;c.height=H*DPR;const x=c.getContext('2d');x.scale(DPR,DPR);
+  let g=x.createLinearGradient(0,0,0,190);g.addColorStop(0,'#fbe3ec');g.addColorStop(1,'#f4cddc');x.fillStyle=g;x.fillRect(0,0,W,190);
+  x.fillStyle='rgba(255,255,255,.4)';for(let yy=14;yy<120;yy+=26)for(let xx=(yy/26|0)%2?14:27;xx<W;xx+=26){x.beginPath();x.arc(xx,yy,2.2,0,TAU);x.fill();}
+  x.fillStyle='#bfe6d6';x.fillRect(0,128,W,62);x.fillStyle='#a2d6c1';x.fillRect(0,126,W,5);
+  x.strokeStyle='rgba(255,255,255,.55)';x.lineWidth=2;for(let xx=32;xx<W;xx+=64){rrp(x,xx-26,140,52,40,6);x.stroke();}
+  for(let yy=190,i=0;yy<H;yy+=24,i++){x.fillStyle=i%2?'#e8cba0':'#ecd2aa';x.fillRect(0,yy,W,24);x.fillStyle='rgba(150,100,60,.12)';x.fillRect(0,yy,W,1.5);
+    for(let xx=(i%2?40:100);xx<W;xx+=120){x.fillRect(xx,yy,1.5,24);}}
+  g=x.createLinearGradient(0,190,0,214);g.addColorStop(0,'rgba(120,70,70,.22)');g.addColorStop(1,'rgba(120,70,70,0)');x.fillStyle=g;x.fillRect(0,190,W,24);
+  x.fillStyle='#d6b08a';x.fillRect(0,186,W,6);
+  // rug
+  x.fillStyle='#d9ccf7';x.beginPath();x.ellipse(320,350,125,34,0,0,TAU);x.fill();x.strokeStyle='#fff';x.lineWidth=2;x.setLineDash([6,6]);x.beginPath();x.ellipse(320,350,108,27,0,0,TAU);x.stroke();x.setLineDash([]);
+  // cozy break lounge sofa & coffee table on the rug
+  x.fillStyle='rgba(70,45,60,.12)';x.beginPath();x.ellipse(320,334,76,12,0,0,TAU);x.fill();
+  x.fillStyle='#ff9ec0';x.strokeStyle='#d67498';x.lineWidth=2;
+  rrp(x,256,304,128,24,10);x.fill();x.stroke();
+  rrp(x,250,316,140,18,8);x.fill();x.stroke();
+  x.fillStyle='#ffd5e5';rrp(x,262,317,54,14,6);x.fill();rrp(x,324,317,54,14,6);x.fill();
+  x.fillStyle='#fff7e8';x.strokeStyle='#d9b08f';x.lineWidth=2;x.beginPath();x.ellipse(320,362,32,12,0,0,TAU);x.fill();x.stroke();
+  x.fillStyle='#7c5cd6';x.font='800 9px Nunito, system-ui, sans-serif';x.textAlign='center';x.fillText('BREAK LOUNGE',320,392);
+  // windows
+  const win=(wx,wy,ww,wh)=>{x.fillStyle='#fff';rrp(x,wx-6,wy-6,ww+12,wh+12,12);x.fill();
+    const sg=x.createLinearGradient(0,wy,0,wy+wh);sg.addColorStop(0,'#b9e0ff');sg.addColorStop(1,'#e9f7ff');x.fillStyle=sg;rrp(x,wx,wy,ww,wh,8);x.fill();
+    x.fillStyle='rgba(255,255,255,.9)';x.beginPath();x.ellipse(wx+ww*0.3,wy+wh*0.35,16,7,0,0,TAU);x.ellipse(wx+ww*0.42,wy+wh*0.3,12,8,0,0,TAU);x.fill();
+    x.fillStyle='#fff';x.fillRect(wx+ww/2-2,wy,4,wh);x.fillRect(wx,wy+wh/2-2,ww,4);x.fillStyle='#e9d5de';x.fillRect(wx-10,wy+wh+6,ww+20,6);};
+  win(36,34,100,84);win(504,34,100,84);
+  // chalkboard
+  x.fillStyle='#b98a5e';rrp(x,228,18,184,84,10);x.fill();x.fillStyle='#35524c';rrp(x,235,25,170,70,6);x.fill();
+  x.fillStyle='#f6f3e6';x.textAlign='center';x.font='600 15px Fredoka, Trebuchet MS, sans-serif';x.fillText('THE HERO LOUNGE',320,50);
+  x.font='700 10px Nunito, system-ui, sans-serif';x.fillText('tea  �  latte  �  cake  �  cookies',320,68);
+  x.strokeStyle='#f6f3e6';x.lineWidth=1.5;x.beginPath();x.moveTo(268,78);x.lineTo(372,78);x.stroke();
+  x.fillStyle='#ffd56b';x.font='700 11px Nunito, system-ui, sans-serif';x.fillText('PLUS ULTRA � U.A. HIGH',320,90);
+  // shelf + jars (left of board and right)
+  x.fillStyle='#c99a6c';x.fillRect(172,100,52,5);x.fillRect(416,100,52,5);
+  [['#ff9ec0',178],['#9fd8ff',196],['#ffe28a',428],['#b5e8a5',446]].forEach(j=>{x.fillStyle=j[0];rrp(x,j[1],80,14,20,4);x.fill();x.strokeStyle='rgba(60,40,70,.5)';x.lineWidth=1.5;x.stroke();});
+  // counter
+  x.fillStyle='#f6dcbc';rrp(x,164,120,312,32,8);x.fill();x.fillStyle='#e0b98f';x.fillRect(166,146,308,6);
+  x.fillStyle='#c98f6a';rrp(x,170,150,300,38,6);x.fill();x.strokeStyle='rgba(90,50,40,.25)';x.lineWidth=1.5;for(let xx=190;xx<460;xx+=20){x.beginPath();x.moveTo(xx,154);x.lineTo(xx,184);x.stroke();}
+  STATIONS.forEach(s=>{x.fillStyle='#fff7e8';rrp(x,s.x-27,159,54,17,8);x.fill();x.strokeStyle='#8a5a44';x.lineWidth=1.5;x.stroke();
+    x.fillStyle=INK;x.font='800 10px Nunito, system-ui, sans-serif';x.textAlign='center';x.fillText({tea:'Tea',coffee:'Latte',cake:'Cake',cookie:'Cookies'}[s.id],s.x,171);
+    x.fillStyle='rgba(255,255,255,.7)';x.beginPath();x.ellipse(s.x,142,24,7,0,0,TAU);x.fill();icon(x,s.id,s.x,136,10);});
+  x.strokeStyle='#8a6a52';x.lineWidth=1.5;x.beginPath();x.moveTo(0,14);x.quadraticCurveTo(160,34,320,14);x.quadraticCurveTo(480,34,640,14);x.stroke();
+  return c;
+}
+const BULBS=[];for(let i=0;i<=16;i++){const u=i/16;const px=u*W;const py=14+Math.sin(u*Math.PI*2)*0+((u<0.5?u*2:(u-0.5)*2)*(1-(u<0.5?u*2:(u-0.5)*2)))*80/2*1.0;BULBS.push({x:px,y:py+4,c:['#ffd56b','#ff9ec0','#9fe6c8','#b9a6ff'][i%4],p:i*0.7});}
+
+const rand=a=>a[Math.floor(Math.random()*a.length)];
+const maxCust=()=>G.score>=150?4:G.score>=50?3:2;
+function spawn(){
+  const free=TABLES.filter(t=>!t.c);if(!free.length||G.customers.filter(c=>c.state==='waiting').length>=maxCust())return;
+  const here=G.customers.map(c=>c.ch.id);
+  const squadIds=G.squad.map(m=>m.ch.id);
+  const pool=CAST.filter(c=>squadIds.indexOf(c.id)<0&&here.indexOf(c.id)<0);if(!pool.length)return;
+  const ch=rand(pool),t=rand(free),item=Math.random()<0.55?ch.fav:rand(MENU).id;
+  const cu={ch,table:t,item,state:'waiting',patience:55,max:55,pop:0,say:null,sayT:0,leaveT:0,eatT:0,happy:false};
+  t.c=cu;G.customers.push(cu);sfx('pop');
+}
+function blocked(x,y){
+  if(x<26||x>614||y<200||y>468)return true;
+  for(const t of TABLES){const ex=(x-t.x)/55,ey=(y-t.y)/31;if(ex*ex+ey*ey<1)return true;if(x>t.x-26&&x<t.x+26&&y>t.y-72&&y<t.y-20)return true;}
+  if(Math.hypot(x-70,(y-448)*1.5)<32)return true;
+  if(x>246&&x<394&&y>302&&y<336)return true;
+  return false;
+}
+
+/* ---------- Character-to-Character Banter ---------- */
+const PAIR_BANTER={
+  'deku+bakugo':[
+    ['deku',"Kacchan, you're doing great! Just try not to blast the espresso machine..."],
+    ['bakugo',"SHUT UP, DEKU! I've got total control! Watch how fast I clear these orders!"]
+  ],
+  'deku+allmight':[
+    ['allmight',"Taking a breather, young Midoriya? Even the Symbol of Peace needs a cookie break!"],
+    ['deku',"Yes, All Might! Watching everyone smile here reminds me why we train so hard!"]
+  ],
+  'deku+uraraka':[
+    ['uraraka',"Whew, my feet are tired! Hey Deku, think I could float the next cake over?"],
+    ['deku',"Haha, just make sure you press your fingertips together before it hits the ceiling!"]
+  ],
+  'bakugo+todoroki':[
+    ['todoroki',"Bakugo. Your tea went cold. Want me to warm it up?"],
+    ['bakugo',"DON'T TOUCH MY CUP, ICY-HOT! I like it boiling!"]
+  ],
+  'todoroki+mina':[
+    ['mina',"Ooh Todoroki, can you make shaved ice if I bring strawberry syrup?!"],
+    ['todoroki',"I can do that. Though Aizawa-sensei said no Quirks on shift."]
+  ],
+  'aizawa+mic':[
+    ['mic',"HEY ERASER!! Great shift today, right?! Want me to put on some tunes?!"],
+    ['aizawa',"Yamada... lower your voice by eighty percent. I'm trying to drink my coffee."]
+  ],
+  'aizawa+allmight':[
+    ['allmight',"Hahaha! The students are running this lounge remarkably well, Aizawa!"],
+    ['aizawa',"They haven't burned the kitchen down yet. That's a passing grade in my book."]
+  ],
+  'tokoyami+shoji':[
+    ['tokoyami',"This shaded corner by the rug offers pleasant respite from the afternoon glare."],
+    ['shoji',"Agreed. Quiet breaks help sharpen the senses before the next rush."]
+  ],
+  'koda+tsuyu':[
+    ['koda',"...Look, Tsu... Mochi curled up closer to the sofa..."],
+    ['tsuyu',"She likes having us around, Koda, ribbit. It's very peaceful here."]
+  ],
+  'mina+uraraka':[
+    ['mina',"Okay, after our shift we are 100% splitting a slice of that strawberry cake!"],
+    ['uraraka',"Deal!! My treat-well, once we earn enough points!"]
+  ],
+  'aizawa+vlad':[
+    ['vlad',"Come on, Aizawa! Admit Class 1-B has the edge in caf� teamwork today!"],
+    ['aizawa',"Keep dreaming, Kan. Wake me when your students beat our service streak."]
+  ],
+  'midnight+mic':[
+    ['midnight',"Now THIS lounge has theatrical flair! Don't you agree, Hizashi?"],
+    ['mic',"YEAAAH!! All it needs is a spotlight and a live radio broadcast, Nemuri!!"]
+  ],
+  'recovery+deku':[
+    ['recovery',"Now don't you go overusing One For All behind the counter, Midoriya!"],
+    ['deku',"I promise, Recovery Girl! Just five percent for carrying the cookie trays!"]
+  ],
+  'cementoss+allmight':[
+    ['cementoss',"A well-paced rush builds great character, wouldn't you say, Toshinori?"],
+    ['allmight',"HAHAHA! Indeed, Ken! Solid teamwork is the true foundation of peace!"]
+  ]
+};
+function getBanter(a,b){
+  const k1=a.id+'+'+b.id,k2=b.id+'+'+a.id;
+  if(PAIR_BANTER[k1])return PAIR_BANTER[k1];
+  if(PAIR_BANTER[k2])return PAIR_BANTER[k2];
+  return [
+    [a.id,rand([
+      "Nice break! How's your shift going, "+b.name.split(' ')[0]+"?",
+      "Good thing we're working as a team today, "+b.name.split(' ')[0]+"!",
+      "This lounge sofa is dangerously comfy after running orders..."
+    ])],
+    [b.id,rand([
+      "Seriously! Plus Ultra teamwork makes the rush fly by, "+a.name.split(' ')[0]+"!",
+      "Couldn't agree more. Ready to jump back in whenever you are!",
+      "Right? Let's grab a quick sip before the next wave of tables!"
+    ])]
+  ];
+}
+
+function toggleBreak(idx,forceState){
+  const m=G.squad[idx];if(!m)return;
+  const next=forceState!==undefined?forceState:!m.onBreak;
+  if(next===m.onBreak)return;
+  m.onBreak=next;
+  if(next){
+    m.breakT=0;m.drink=rand(['tea','coffee']);
+    toast(m.ch.name.split(' ')[0]+' went on break to the lounge sofa!');
+    sfx('blip');
+    if(idx===G.activeIdx&&G.squad.length>1){
+      const nxt=G.squad.findIndex((s,i)=>i!==idx&&!s.onBreak);
+      if(nxt>=0)switchHero(nxt,true);
+    }
+  }else{
+    m.energy=100;m.refreshedT=12;m.drink=null;
+    toast(m.ch.name.split(' ')[0]+' is refreshed and back on duty! (+Speed)');
+    burst(m.x,m.y-35,8);sfx('pop');
+  }
+  renderSquadHud();
+}
+
+function switchHero(idx,silent){
+  if(idx<0||idx>=G.squad.length)return;
+  if(isCoopPlayer(idx)){
+    G.activeIdx=idx;
+    const m=activeMember();
+    if(m.onBreak)toggleBreak(idx,false);
+    if(!silent){sfx('blip');toast('Player '+(idx+1)+' ('+m.ch.name.split(' ')[0]+') active!');}
+  }else{
+    // Swap selected hero into the active player slot
+    const cur=G.activeIdx;
+    const tmp=G.squad[cur];
+    G.squad[cur]=G.squad[idx];
+    G.squad[idx]=tmp;
+    G.squad[cur].x=WORK_SPOTS[cur%WORK_SPOTS.length].x;
+    G.squad[cur].y=WORK_SPOTS[cur%WORK_SPOTS.length].y;
+    G.squad[cur].onBreak=false;
+    if(!silent){sfx('blip');toast('Player '+(cur+1)+' swapped to '+G.squad[cur].ch.name.split(' ')[0]+'!');}
+  }
+  renderSquadHud();hud();
+}
+
+function moveToward(m,tx,ty,sp,dt){
+  const dx=tx-m.x,dy=ty-m.y,d=Math.hypot(dx,dy);
+  if(d>4){
+    const vx=(dx/d)*sp*dt,vy=(dy/d)*sp*dt;
+    if(!blocked(m.x+vx,m.y))m.x+=vx;
+    if(!blocked(m.x,m.y+vy))m.y+=vy;
+    m.walk=(m.walk+dt*1.5)%1;m.moving=true;
+  }else{m.moving=false;m.walk=0;}
+}
+
+function update(dt){
+  G.t+=dt;
+  // Update all squad members (supporting simultaneous 1P-4P local co-op + AI teammates/resting heroes)
+  G.squad.forEach((m,i)=>{
+    if(m.mood>0)m.mood-=dt;
+    if(m.refreshedT>0)m.refreshedT-=dt;
+    const manual=(isCoopPlayer(i)&&!m.onBreak);
+    if(manual){
+      const k=pInput[i];
+      let dx=(k.right?1:0)-(k.left?1:0),dy=(k.down?1:0)-(k.up?1:0);
+      if(dx||dy){
+        const l=Math.hypot(dx,dy);dx/=l;dy/=l;
+      }else if(i===G.activeIdx){dx=nativeX;dy=nativeY;}
+      if(dx||dy){
+        const sp=(m.refreshedT>0?182:150)*dt;
+        if(!blocked(m.x+dx*sp,m.y))m.x+=dx*sp;
+        if(!blocked(m.x,m.y+dy*sp))m.y+=dy*sp;
+        m.walk=(m.walk+dt*1.7)%1;m.moving=true;
+      }else{m.moving=false;m.walk=0;}
+      m.energy=Math.max(0,m.energy-dt*2.4);
+      if(m.energy<=0&&G.squad.length>1){toggleBreak(i,true);}
+    }else if(m.onBreak){
+      const spot=BREAK_SPOTS[i%BREAK_SPOTS.length];
+      moveToward(m,spot.x,spot.y,110,dt);
+      m.energy=Math.min(100,m.energy+dt*7.5);
+      m.breakT=(m.breakT||0)+dt;
+      if(m.energy>=100&&m.breakT>8){toggleBreak(i,false);}
+    }else{
+      const spot=WORK_SPOTS[i%WORK_SPOTS.length];
+      moveToward(m,spot.x,spot.y,105,dt);
+      m.energy=Math.max(15,m.energy-dt*1.1);
+    }
+  });
+
+  // Autonomous character-to-character chatting when 2+ characters are on break (or near the break rug)
+  const resting=G.squad.filter(m=>m.onBreak&&Math.hypot(m.x-320,m.y-352)<75);
+  if(G.banterBubbleT>0){
+    G.banterBubbleT-=dt;
+    if(G.banterBubbleT<=0){G.banterLine=null;G.banterSpeaker=null;}
+  }
+  if(resting.length>=2){
+    G.banterT-=dt;
+    if(G.banterT<=0){
+      const a=resting[0],b=resting[1];
+      if(!G.banterPair||G.banterPair.ids!==a.ch.id+'+'+b.ch.id){
+        G.banterPair={ids:a.ch.id+'+'+b.ch.id,lines:getBanter(a.ch,b.ch),step:0};
+      }
+      const turn=G.banterPair.lines[G.banterPair.step%G.banterPair.lines.length];
+      G.banterSpeaker=turn[0];
+      G.banterLine=turn[1];
+      G.banterBubbleT=3.8;
+      G.banterPair.step++;
+      G.banterT=4.5;
+      const spk=resting.find(m=>m.ch.id===turn[0])||a;
+      spk.mood=1.5;
+      burst(spk.x,spk.y-46,3);
+      addScore(2);hud();
+    }
+  }else{
+    G.banterPair=null;
+    G.banterT=Math.min(G.banterT,1.5);
+  }
+
+  for(const c of G.customers){
+    c.pop=Math.min(1,c.pop+dt*3.5);
+    if(c.sayT>0){c.sayT-=dt;if(c.sayT<=0)c.say=null;}
+    if(c.state==='waiting'){c.patience-=dt;if(c.patience<=0){c.state='leaving';c.happy=false;c.say=rand(["Maybe next time...","I'll come back later!","Back to class I go."]);c.sayT=2;G.streak=0;sfx('bye');hud();}}
+    else if(c.state==='eating'){c.eatT-=dt;if(c.eatT<=0){c.state='leaving';c.happy=true;c.leaveT=0;}}
+    else if(c.state==='leaving'){c.leaveT+=dt;}
+  }
+  for(let i=G.customers.length-1;i>=0;i--){const c=G.customers[i];if(c.state==='leaving'&&c.leaveT>1.4){c.table.c=null;G.customers.splice(i,1);}}
+  G.spawnT-=dt;if(G.spawnT<=0){spawn();G.spawnT=G.customers.length<2?2.5:6+Math.random()*4;}
+  G.floaters.forEach(f=>{f.t+=dt;f.y-=22*dt;});G.floaters=G.floaters.filter(f=>f.t<1.4);
+  G.parts.forEach(p=>{p.t+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=20*dt;});G.parts=G.parts.filter(p=>p.t<1.2);
+}
+const nearStationFor=(P)=>(P&&!P.onBreak)?STATIONS.find(s=>Math.abs(P.x-s.x)<30&&P.y<238):null;
+const nearStation=()=>nearStationFor(activeMember());
+function nearTableFor(P,filter){if(!P)return null;let best=null,bd=95;for(const t of TABLES){if(!t.c||(filter&&!filter(t.c)))continue;const d=Math.hypot(P.x-t.x,P.y-(t.y+10));if(d<bd){bd=d;best=t;}}return best;}
+function nearTable(filter){return nearTableFor(activeMember(),filter);}
+function burst(x,y,n){for(let i=0;i<n;i++)G.parts.push({x,y,vx:(Math.random()-.5)*70,vy:-30-Math.random()*40,t:0,c:rand(['#ff6f91','#ffd56b','#8fe0c3'])});}
+function addScore(n){const before=G.score;G.score+=n;
+  STAR_AT.forEach((s,i)=>{if(before<s&&G.score>=s){G.stars=i+1;toast('Star earned! Plus Ultra!');sfx('star');}});
+  if(G.score>G.best){G.best=G.score;try{localStorage.setItem('heroLoungeBest',String(G.best));}catch(e){}}}
+function serveFor(P,c){
+  const t=c.table;
+  if(P.carry!==c.item){toast(P.carry?c.ch.name.split(' ')[0]+" ordered "+MB[c.item].name+", not "+MB[P.carry].name+".":"Grab "+MB[c.item].name+" from the counter first.");sfx('blip');return;}
+  const fast=Math.round(10*Math.max(0,c.patience)/c.max);G.streak++;
+  const bonus=P.refreshedT>0?4:0;
+  const pts=10+fast+Math.min(10,(G.streak-1)*2)+bonus;
+  P.carry=null;G.served++;addScore(pts);c.state='eating';c.eatT=4.5;c.happy=true;c.say=line(c.ch,'thanks');c.sayT=3;
+  G.floaters.push({x:t.x,y:t.y-70,text:'+'+pts,t:0});burst(t.x,t.y-50,10);P.mood=1.2;sfx('ding');hud();
+}
+function actFor(idx){
+  if(!G.run||G.chatOpen)return;
+  const P=G.squad[idx]||activeMember();
+  if(P.onBreak){toggleBreak(idx,false);return;}
+  const st=nearStationFor(P);
+  if(st){if(P.carry===st.id){toast('You already have that.');}else{P.carry=st.id;sfx('grab');toast(P.ch.name.split(' ')[0]+' picked up '+MB[st.id].name+'.');hud();}return;}
+  const t=nearTableFor(P,c=>c.state==='waiting'&&c.item===P.carry)||nearTableFor(P,c=>c.state==='waiting');
+  if(t){serveFor(P,t.c);return;}
+  toast('Grab an order at the counter, then bring it to the table.');
+}
+function act(){actFor(G.activeIdx);}
+function chatNear(){
+  if(!G.run||G.chatOpen)return;
+  const P=activeMember();
+  const t=nearTableFor(P,c=>c.state!=='leaving');
+  if(t){openChat(t.c.ch);return;}
+  // Allow chatting with a teammate if standing close to them!
+  const mate=G.squad.find((m,i)=>i!==G.activeIdx&&Math.hypot(P.x-m.x,P.y-m.y)<65);
+  if(mate){openChat(mate.ch);return;}
+  if(Math.hypot(P.x-70,P.y-448)<75){if(G.catT<=0){toast('Mochi purrs softly.');burst(70,420,8);sfx('blip');G.catT=3;}return;}
+  toast('Walk up to a customer or teammate, then press chat.');
+}
+function drawSquadMember(m,idx){
+  const R=16,isCoop=isCoopPlayer(idx),isAct=(idx===G.activeIdx);
+  const ringCol=isCoop?P_COLORS[idx%P_COLORS.length]:'#d63a63';
+  ctx.fillStyle='rgba(60,40,80,.15)';ctx.beginPath();ctx.ellipse(m.x,m.y+1,16,5,0,0,TAU);ctx.fill();
+  if(isCoop||isAct){
+    ctx.strokeStyle=ringCol;ctx.lineWidth=isAct?2.8:2;ctx.beginPath();ctx.ellipse(m.x,m.y+2,(isAct?20:18)+Math.sin(G.t*5)*1.2,6.5,0,0,TAU);ctx.stroke();
+  }else if(m.onBreak){
+    ctx.strokeStyle='#3fb995';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(m.x,m.y+2,18,6,0,0,TAU);ctx.stroke();
+  }
+  const bob=m.moving?-Math.abs(Math.sin(m.walk*TAU))*2.5:Math.sin(G.t*2+idx)*0.6;
+  const h=m.ch;let ex=m.mood>0?'happy':(m.onBreak?'happy':(m.moving&&h.expr!=='sleepy'?'grin':h.expr));
+  drawChar(ctx,h,m.x,m.y-2.25*R+bob,R,'full',ex,G.t,{walk:m.walk});
+  // Name tag pill above head with P1-P4 label in co-op
+  ctx.font='800 10px Nunito, system-ui, sans-serif';ctx.textAlign='center';
+  const pPrefix=isCoop?('P'+(idx+1)+' '):((idx+1)+'. ');
+  const tag=pPrefix+h.name.split(' ')[0]+(m.onBreak?' ?':'');
+  const tw=ctx.measureText(tag).width+10;
+  ctx.fillStyle=isCoop?ringCol:(m.onBreak?'rgba(63,185,149,.92)':'rgba(42,38,68,.78)');
+  rrp(ctx,m.x-tw/2,m.y-68+bob,tw,15,7);ctx.fill();
+  ctx.fillStyle='#fff';ctx.fillText(tag,m.x,m.y-57+bob);
+
+  const held=m.onBreak?m.drink:m.carry;
+  if(held){ctx.fillStyle='#fff';ctx.strokeStyle=INK;ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(m.x,m.y-12+bob,12,4,0,0,TAU);ctx.fill();ctx.stroke();icon(ctx,held,m.x,m.y-19+bob,8);}
+}
+
+/* ---------- drawing the scene ---------- */
+const ease=t=>{const c=1.7;return 1+(c+1)*Math.pow(t-1,3)+c*Math.pow(t-1,2);};
+function wrap(txt,maxW){ctx.font='700 12px Nunito, system-ui, sans-serif';const w=txt.split(' '),L=[];let cur='';w.forEach(a=>{const tt=cur?cur+' '+a:a;if(ctx.measureText(tt).width>maxW&&cur){L.push(cur);cur=a;}else cur=tt;});if(cur)L.push(cur);return L;}
+function bubble(x,y,w,h,tipX){ctx.fillStyle='#fff';ctx.strokeStyle='#d6cbe8';ctx.lineWidth=2;rrp(ctx,x,y,w,h,12);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(tipX-6,y+h-1);ctx.lineTo(tipX,y+h+8);ctx.lineTo(tipX+6,y+h-1);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#d6cbe8';ctx.beginPath();ctx.moveTo(tipX-6,y+h);ctx.lineTo(tipX,y+h+8);ctx.lineTo(tipX+6,y+h);ctx.stroke();ctx.fillStyle='#fff';ctx.fillRect(tipX-5,y+h-3,10,3);}
+function heart(x,y,s,col){ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(x,y+s*0.4);ctx.bezierCurveTo(x-s,y-s*0.4,x-s*0.3,y-s,x,y-s*0.3);ctx.bezierCurveTo(x+s*0.3,y-s,x+s,y-s*0.4,x,y+s*0.4);ctx.fill();}
+function drawChair(t){ctx.fillStyle='#e8ba90';ctx.strokeStyle='#c99a6c';ctx.lineWidth=2;rrp(ctx,t.x-24,t.y-70,48,44,14);ctx.fill();ctx.stroke();}
+function drawTable(t){
+  const c=t.c;
+  ctx.fillStyle='rgba(70,45,60,.13)';ctx.beginPath();ctx.ellipse(t.x,t.y+30,50,10,0,0,TAU);ctx.fill();
+  drawChair(t);
+  if(c){
+    const alpha=c.state==='leaving'?Math.max(0,1-c.leaveT/1.3):1;
+    const hx=t.x,hy=t.y-40,R=16;
+    ctx.save();ctx.globalAlpha=alpha;const s=ease(c.pop);ctx.translate(hx,hy+22);ctx.scale(s,s);ctx.translate(-hx,-(hy+22));
+    let ex=0,bob=0,expr=c.ch.expr;
+    if(c.state==='waiting'&&c.patience<15){expr='shy';ex=Math.sin(G.t*30)*0.9;}
+    if(c.state==='eating'||c.happy&&c.state==='leaving')expr='happy',bob=Math.sin(G.t*9)*1.2;
+    if(c.state==='leaving'&&!c.happy)expr='shy';
+    drawChar(ctx,c.ch,hx+ex,hy+bob,R,'bust',expr,G.t,{});ctx.restore();
+  }
+  ctx.fillStyle='#b98b62';rrp(ctx,t.x-5,t.y+8,10,24,3);ctx.fill();
+  ctx.fillStyle='#fff4f0';ctx.strokeStyle='#d9b08f';ctx.lineWidth=2.5;ctx.beginPath();ctx.ellipse(t.x,t.y,46,22,0,0,TAU);ctx.fill();ctx.stroke();
+  ctx.strokeStyle='#f3c9d6';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(t.x,t.y,36,16,0,0,TAU);ctx.stroke();
+  if(c&&c.state==='eating')icon(ctx,c.item,t.x+4,t.y-6,9);
+}
+function drawPlayer(){
+  const P=G.player,R=16;
+  ctx.fillStyle='rgba(60,40,80,.15)';ctx.beginPath();ctx.ellipse(P.x,P.y+1,16,5,0,0,TAU);ctx.fill();
+  const bob=P.moving?-Math.abs(Math.sin(P.walk*TAU))*2.5:Math.sin(G.t*2)*0.6;
+  const h=G.hero;let ex=G.mood>0?'happy':(P.moving&&h.expr!=='sleepy'?'grin':h.expr);
+  drawChar(ctx,h,P.x,P.y-2.25*R+bob,R,'full',ex,G.t,{walk:P.walk});
+  if(G.carry){ctx.fillStyle='#fff';ctx.strokeStyle=INK;ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(P.x,P.y-12+bob,12,4,0,0,TAU);ctx.fill();ctx.stroke();icon(ctx,G.carry,P.x,P.y-19+bob,8);}
+}
+function drawPlant(x,y){
+  ctx.fillStyle='rgba(60,40,80,.12)';ctx.beginPath();ctx.ellipse(x,y+2,18,5,0,0,TAU);ctx.fill();
+  ctx.fillStyle='#78c995';ctx.strokeStyle='#4b9a6e';ctx.lineWidth=2;
+  [[-9,-52,-0.5],[9,-54,0.5],[0,-62,0],[-14,-40,-0.9],[14,-40,0.9]].forEach(l=>{ctx.save();ctx.translate(x+l[0],y+l[1]);ctx.rotate(l[2]);ctx.beginPath();ctx.ellipse(0,0,7,16,0,0,TAU);ctx.fill();ctx.stroke();ctx.restore();});
+  ctx.fillStyle='#f2a6bc';ctx.strokeStyle='#d6819a';ctx.beginPath();ctx.moveTo(x-14,y-30);ctx.lineTo(x+14,y-30);ctx.lineTo(x+10,y);ctx.lineTo(x-10,y);ctx.closePath();ctx.fill();ctx.stroke();
+}
+function drawCat(){
+  const x=70,y=450,br=Math.sin(G.t*1.6)*1.2;
+  ctx.fillStyle='#cbbaf5';ctx.strokeStyle='#a897dc';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(x,y+6,34,14,0,0,TAU);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#fffaf2';ctx.strokeStyle='#bba98f';ctx.beginPath();ctx.ellipse(x,y-4,24,15+br*0.4,0,0,TAU);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#f6b36b';ctx.beginPath();ctx.ellipse(x+8,y-8,9,6,0.3,0,TAU);ctx.fill();
+  ctx.fillStyle='#fffaf2';ctx.beginPath();ctx.arc(x-16,y-10,11,0,TAU);ctx.fill();ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x-25,y-17);ctx.lineTo(x-22,y-28);ctx.lineTo(x-15,y-20);ctx.closePath();ctx.moveTo(x-8,y-18);ctx.lineTo(x-10,y-28);ctx.lineTo(x-17,y-20);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.strokeStyle=INK;ctx.lineWidth=1.6;ctx.beginPath();ctx.arc(x-20,y-10,2.6,0.1,Math.PI-0.1);ctx.moveTo(x-9+2,y-10);ctx.arc(x-12,y-10,2.6,0.1,Math.PI-0.1);ctx.stroke();
+  ctx.fillStyle='rgba(120,100,160,.8)';ctx.font='800 11px Nunito, system-ui, sans-serif';ctx.textAlign='left';ctx.fillText('z',x+16,y-22-((G.t*6)%8));
+}
+function drawOverlays(){
+  for(const c of G.customers){
+    if(!c.say&&c.state!=='waiting')continue;
+    const t=c.table,side=t.x<320?1:-1;
+    ctx.save();ctx.globalAlpha=Math.min(1,c.pop)*(c.state==='leaving'?Math.max(0,1-c.leaveT/1.3):1);
+    if(c.say){
+      const L=wrap(c.say,100),w=Math.min(120,Math.max(...L.map(l=>ctx.measureText(l).width))+18),h=L.length*15+12;
+      const x=side>0?t.x+18:t.x-18-w,y=t.y-48-h;bubble(x,y,w,h,side>0?x+12:x+w-12);
+      ctx.fillStyle=INK;ctx.textAlign='left';ctx.font='700 12px Nunito, system-ui, sans-serif';L.forEach((l,i)=>ctx.fillText(l,x+9,y+18+i*15));
+    }else{
+      const w=48,h=46,x=side>0?t.x+18:t.x-18-w,y=t.y-50-h;bubble(x,y,w,h,side>0?x+12:x+w-12);
+      icon(ctx,c.item,x+w/2,y+17,11);
+      const r=Math.max(0,c.patience/c.max);ctx.fillStyle='rgba(60,50,100,.14)';rrp(ctx,x+7,y+h-11,w-14,6,3);ctx.fill();
+      ctx.fillStyle=r>0.5?'#4fc9a0':r>0.25?'#ffb84d':'#ff6b81';rrp(ctx,x+7,y+h-11,Math.max(4,(w-14)*r),6,3);ctx.fill();
+    }
+    ctx.restore();
+  }
+  // Draw character-to-character break chat bubble
+  if(G.banterLine&&G.banterSpeaker){
+    const spk=G.squad.find(m=>m.ch.id===G.banterSpeaker);
+    if(spk){
+      ctx.save();
+      ctx.globalAlpha=Math.min(1,G.banterBubbleT*2);
+      const L=wrap(G.banterLine,145);
+      const w=Math.min(165,Math.max(...L.map(l=>ctx.measureText(l).width))+20),h=L.length*15+14;
+      const bx=Math.max(12,Math.min(W-w-12,spk.x-w/2)),by=Math.max(16,spk.y-76-h);
+      bubble(bx,by,w,h,Math.max(bx+12,Math.min(bx+w-12,spk.x)));
+      ctx.fillStyle=INK;ctx.textAlign='left';ctx.font='700 11.5px Nunito, system-ui, sans-serif';
+      L.forEach((l,i)=>ctx.fillText(l,bx+10,by+19+i*15));
+      ctx.restore();
+    }
+  }
+  G.floaters.forEach(f=>{ctx.globalAlpha=Math.max(0,1-f.t/1.4);ctx.fillStyle='#fff';ctx.strokeStyle='#d63a63';ctx.lineWidth=4;ctx.font='700 20px Fredoka, Trebuchet MS, sans-serif';ctx.textAlign='center';ctx.strokeText(f.text,f.x,f.y);ctx.fillText(f.text,f.x,f.y);ctx.globalAlpha=1;});
+  G.parts.forEach(p=>{ctx.globalAlpha=Math.max(0,1-p.t/1.2);heart(p.x,p.y,5,p.c);ctx.globalAlpha=1;});
+}
+function draw(){
+  ctx.setTransform(DPR,0,0,DPR,0,0);ctx.drawImage(BG,0,0,W,H);
+  BULBS.forEach(b=>{const a=0.55+0.45*Math.sin(G.t*2+b.p);ctx.fillStyle='rgba(255,230,160,'+(a*0.28)+')';ctx.beginPath();ctx.arc(b.x,b.y,9,0,TAU);ctx.fill();ctx.globalAlpha=0.6+0.4*a;ctx.fillStyle=b.c;ctx.beginPath();ctx.arc(b.x,b.y,3.4,0,TAU);ctx.fill();ctx.globalAlpha=1;});
+  const st=nearStation();
+  if(st){ctx.strokeStyle='#ffd56b';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(st.x,140,28+Math.sin(G.t*6)*2,12,0,0,TAU);ctx.stroke();}
+  const items=[];
+  TABLES.forEach(t=>items.push({y:t.y+20,f:()=>drawTable(t)}));
+  G.squad.forEach((m,i)=>items.push({y:m.y,f:()=>drawSquadMember(m,i)}));
+  items.push({y:203,f:()=>drawPlant(38,203)},{y:203,f:()=>drawPlant(602,203)},{y:452,f:drawCat});
+  items.sort((a,b)=>a.y-b.y).forEach(i=>i.f());
+  drawOverlays();
+}
+
+let last=0,lastHint='',lastHudSync=0;
+function loop(ts){
+  if(!G.run)return;
+  const dt=Math.min(0.05,(ts-last)/1000||0);last=ts;
+  if(!G.chatOpen&&!document.hidden&&!nativePaused){
+    update(dt);if(G.catT>0)G.catT-=dt;
+    lastHudSync+=dt;if(lastHudSync>0.35){lastHudSync=0;updateSquadBars();}
+  }
+  draw();
+  const P=activeMember();
+  let h='Walk with WASD � Switch hero with Q or 1-'+G.squad.length+' � Send on break with B.';
+  const st=nearStation(),tb=nearTable(c=>c.state==='waiting');
+  if(P&&P.onBreak)h=P.ch.name.split(' ')[0]+' is relaxing on break! Press B or E to return to work.';
+  else if(st)h='Press E to grab '+MB[st.id].name+'.';
+  else if(tb)h=P.carry===tb.c.item?'Press E to serve '+tb.c.ch.name.split(' ')[0]+'.':'Press C to chat with '+tb.c.ch.name.split(' ')[0]+'.';
+  else if(nearTable(c=>c.state!=='leaving'))h='Press C to chat.';
+  if(android){
+    const interaction=P.onBreak?'return':st?'grab':tb?'serve':'default';
+    if(interaction!==nativeInteraction){nativeInteraction=interaction;android.interaction(interaction);}
+    if(P.onBreak)h='On break � Tap Return to get back to work.';
+    else if(st)h='Tap Grab to pick up '+MB[st.id].name+'.';
+    else if(tb&&P.carry===tb.c.item)h='Tap Serve to deliver to '+tb.c.ch.name.split(' ')[0]+'.';
+    else if(nearTable(c=>c.state!=='leaving'))h='Tap Chat to talk or check the order.';
+    else h='Pick up an order at the counter, then bring it to a table.';
+  }
+  if(h!==lastHint){$('#hint').textContent=h;lastHint=h;}
+  gameFrame=requestAnimationFrame(loop);
+}
+function updateSquadBars(){
+  G.squad.forEach((m,i)=>{
+    const fill=$('#sfill-'+i),st=$('#sstat-'+i);
+    if(fill)fill.style.width=Math.round(m.energy)+'%';
+    if(st)st.textContent=m.onBreak?'On Break ?':(m.carry?MB[m.carry].name:'Ready');
+  });
+}
+function renderSquadHud(){
+  const bar=$('#squadBar');bar.innerHTML='';
+  G.squad.forEach((m,i)=>{
+    const isCoop=isCoopPlayer(i);
+    const slot=document.createElement('div');
+    slot.className='slot'+(i===G.activeIdx?' active':'')+(m.onBreak?' resting':'');
+    if(isCoop)slot.style.borderColor=P_COLORS[i%P_COLORS.length];
+    slot.setAttribute('role','button');slot.tabIndex=0;
+    slot.title=isCoop?('Player '+(i+1)+': '+m.ch.name):('Select '+m.ch.name);
+    const c=document.createElement('canvas');c.width=c.height=96;
+    drawPortrait(c,m.ch,m.onBreak?'happy':m.ch.expr);
+    const meta=document.createElement('div');meta.className='smeta';
+    const badgeHtml=isCoop?('<span class="p-tag" style="background:'+P_COLORS[i%P_COLORS.length]+'">P'+(i+1)+'</span>'):'';
+    meta.innerHTML='<span class="sname">'+hNameShort(m.ch)+' '+badgeHtml+'</span><span class="sstat" id="sstat-'+i+'">'+(m.onBreak?'On Break ?':(m.carry?MB[m.carry].name:'Ready'))+'</span><div class="sbar"><div class="sfill" id="sfill-'+i+'" style="width:'+Math.round(m.energy)+'%"></div></div>';
+    const bbtn=document.createElement('button');bbtn.type='button';bbtn.className='brk-btn';
+    bbtn.textContent=m.onBreak?'Work':'Break';
+    bbtn.title=m.onBreak?'Call back from break':'Send on break to lounge sofa';
+    bbtn.addEventListener('click',e=>{e.stopPropagation();toggleBreak(i);});
+    slot.addEventListener('click',()=>switchHero(i));
+    slot.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();switchHero(i);}});
+    slot.append(c,meta,bbtn);bar.appendChild(slot);
+  });
+}
+function hNameShort(ch){return ch.name.split(' ')[0];}
+function hud(){
+  const P=activeMember();
+  $('#score').textContent=G.score;$('#served').textContent=G.served;$('#streak').textContent=G.streak;
+  $('#friends').textContent=G.friends.size+'/'+(CAST.length-G.squad.length);
+  $('#carry').textContent=(P&&P.carry)?MB[P.carry].name:'Nothing';
+  $('#stars').textContent='???'.slice(0,G.stars)+'???'.slice(0,3-G.stars);
+  updateSquadBars();
+}
+let toastT=0;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true;},2600);}
+
+/* ---------- chat ---------- */
+const INTENTS=[
+ ['bye',/\b(bye|goodbye|see you|see ya|later|cya|gotta go)\b/],
+ ['thanks',/\b(thanks|thank you|thx)\b/],
+ ['joke',/\b(joke|funny|pun|laugh)\b/],
+ ['power',/\b(quirk|quirks|power|powers|ability|abilities|gift|special|superpower|what can you do)\b/],
+ ['fav',/\b(favou?rite|drink|food|eat|hungry|menu|recommend|order|snack|tea|coffee|latte|cake|cookie|cookies)\b/],
+ ['day',/(how are you|how's it going|hows it going|how was your day|how is your day|your day|what's up|whats up|how are things)/],
+ ['dream',/\b(dream|goal|goals|future|want to be|become|ambition)\b/],
+ ['cafe',/(cafe|caf�|lounge|\bplace\b|\bshop\b)/],
+ ['name',/(who are you|your name|\bname\b|introduce)/],
+ ['compliment',/\b(cute|nice|cool|great|awesome|amazing|love|pretty|best|adorable|lovely|sweet)\b/],
+ ['greet',/\b(hi|hello|hey|yo|sup|hiya|howdy|good (morning|afternoon|evening))\b/]
+];
+const MOOD={joke:'grin',compliment:'shy',greet:'happy',power:'grin',thanks:'happy'};
+const CHIPS=['Who are you?',"What's your Quirk?",'What do you recommend?','Tell me a joke',"How's your day?","What's your dream?",'Like the caf�?'];
+let chatWith=null;
+const logEl=$('#chatLog'),input=$('#chatInput');
+function addMsg(who,text){const d=document.createElement('div');d.className='msg '+who;d.textContent=text;logEl.appendChild(d);logEl.scrollTop=logEl.scrollHeight;return d;}
+function replyFor(c,text){
+  const t=text.toLowerCase();let key='fallback';
+  for(const it of INTENTS){if(it[1].test(t)){key=it[0];break;}}
+  const txt=key==='name'?c.intro:line(c,key==='fallback'?'fallback':key);
+  return {key,txt:txt||line(c,'fallback')};
+}
+function openChat(c){
+  G.chatOpen=true;chatWith=c;pInput.forEach(k=>{k.left=k.right=k.up=k.down=false;});
+  $('#chat').hidden=false;$('#chatName').textContent=c.name;$('#chatRole').textContent=c.role+' � Quirk: '+c.pw;
+  logEl.innerHTML='';drawPortrait($('#chatPic'),c,'happy');addMsg('them',line(c,'greet'));
+  syncNativeControls();
+  if(!android&&!window.matchMedia('(hover:none)').matches)input.focus();
+}
+function closeChat(){if(!G.chatOpen)return;$('#chat').hidden=true;G.chatOpen=false;if(chatWith)drawPortrait($('#chatPic'),chatWith,chatWith.expr);chatWith=null;input.blur();syncNativeControls();}
+function send(text){
+  text=text.trim();if(!text||!chatWith)return;
+  const c=chatWith;addMsg('me',text);input.value='';
+  if(!G.friends.has(c.id)){G.friends.add(c.id);addScore(5);toast('New friend: '+c.name.split(' ')[0]+'! +5 points');sfx('star');hud();}
+  const typing=addMsg('them','');typing.innerHTML='<span class="dots"><span></span><span></span><span></span></span>';
+  const r=replyFor(c,text);
+  setTimeout(()=>{if(chatWith!==c)return;typing.textContent=r.txt;drawPortrait($('#chatPic'),c,MOOD[r.key]||'smile');logEl.scrollTop=logEl.scrollHeight;},650);
+}
+$('#chatForm').addEventListener('submit',e=>{e.preventDefault();send(input.value);});
+$('#chatClose').addEventListener('click',closeChat);
+$('#chat').addEventListener('pointerdown',e=>{if(e.target===$('#chat'))closeChat();});
+CHIPS.forEach(t=>{const b=document.createElement('button');b.type='button';b.textContent=t;b.addEventListener('click',()=>send(t));$('#chips').appendChild(b);});
+
+/* ---------- title screen ---------- */
+let sel=0,playersMode=1,squad=[0];const cards=[];
+function setPlayerMode(n){
+  playersMode=n;
+  while(squad.length<n){
+    const nextIdx=CAST.findIndex((_,i)=>squad.indexOf(i)<0);
+    if(nextIdx<0)break;
+    squad.push(nextIdx);
+  }
+  document.querySelectorAll('.mode-btn').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.mode===n)));
+  showDetail();sfx('blip');
+}
+document.querySelectorAll('.mode-btn').forEach(b=>b.addEventListener('click',()=>setPlayerMode(+b.dataset.mode)));
+function toggleInSquad(idx){
+  const pos=squad.indexOf(idx);
+  if(pos>=0){
+    if(squad.length===1){toast('Your squad needs at least 1 hero!');return;}
+    if(squad.length<=playersMode){toast('Switch to '+(squad.length-1)+'P mode first to remove a player slot.');return;}
+    squad.splice(pos,1);sfx('blip');
+  }else{
+    if(squad.length>=4){toast('Maximum 4 heroes in your caf� squad!');return;}
+    squad.push(idx);sfx('pop');
+  }
+  showDetail();
+}
+function renderSquadSlots(){
+  $('#squadCount').textContent=squad.length+' / 4 � '+playersMode+'P';
+  const box=$('#squadSlots');box.innerHTML='';
+  for(let i=0;i<4;i++){
+    const d=document.createElement('div');
+    if(i<squad.length){
+      const c=CAST[squad[i]];
+      const isP=i<playersMode;
+      d.className='sslot filled';d.title='Click to remove '+c.name;
+      if(isP)d.style.borderColor=P_COLORS[i%P_COLORS.length];
+      const cv=document.createElement('canvas');cv.width=cv.height=96;drawPortrait(cv,c,'happy');
+      const sp=document.createElement('span');sp.textContent=(isP?('P'+(i+1)):(i+1))+'. '+c.name.split(' ')[0];
+      d.append(cv,sp);
+      d.addEventListener('click',()=>{sel=squad[i];toggleInSquad(squad[i]);});
+    }else{
+      d.className='sslot';
+      d.innerHTML='<span style="color:var(--muted)">Slot '+(i+1)+'</span><span style="font-size:.65rem;color:var(--muted)">+ Add hero</span>';
+    }
+    box.appendChild(d);
+  }
+}
+function showDetail(){
+  const c=CAST[sel];drawPortrait($('#detailPic'),c,'happy');
+  $('#dName').textContent=c.name;$('#dRole').textContent=c.role;$('#dRole').className='pill'+(c.role==='Staff'?' staff':'');
+  $('#dFav').textContent='Loves: '+MB[c.fav].name;$('#dPw').textContent='Quirk � '+c.pw+':';$('#dPwd').textContent=c.pwd;$('#dQuote').textContent='"'+c.intro+'"';
+  const inSq=squad.indexOf(sel)>=0;
+  $('#toggleSquadBtn').textContent=inSq?(squad.length>1?'Remove from squad':'In squad (Lead)'):'Add to squad ('+squad.length+'/4)';
+  $('#startBtn').textContent=playersMode>1?('Start '+playersMode+'-Player Co-op ('+squad.length+' heroes)'):(squad.length>1?'Open the caf� with '+squad.length+' heroes':'Open the caf� as '+c.name.split(' ')[0]);
+  cards.forEach((b,i)=>{
+    const sIdx=squad.indexOf(i);
+    b.setAttribute('aria-pressed',String(i===sel));
+    let badge=b.querySelector('.badge');
+    if(sIdx>=0){
+      if(!badge){badge=document.createElement('span');badge.className='badge';b.appendChild(badge);}
+      badge.textContent=sIdx<playersMode?('P'+(sIdx+1)):('#'+(sIdx+1));
+      badge.style.background=sIdx<playersMode?P_COLORS[sIdx%P_COLORS.length]:'var(--accent)';
+    }else if(badge){badge.remove();}
+  });
+  renderSquadSlots();
+}
+$('#toggleSquadBtn').addEventListener('click',()=>toggleInSquad(sel));
+CAST.forEach((c,i)=>{
+  const b=document.createElement('button');b.type='button';b.className='card';b.setAttribute('aria-pressed','false');
+  const cvs=document.createElement('canvas');cvs.width=cvs.height=240;
+  const nm=document.createElement('span');nm.className='nm';nm.textContent=c.name;
+  const rl=document.createElement('span');rl.className='pill'+(c.role==='Staff'?' staff':'');rl.textContent=c.role;
+  b.append(cvs,nm,rl);$('#roster').appendChild(b);cards.push(b);
+  drawPortrait(cvs,c,c.expr);
+  const over=()=>drawPortrait(cvs,c,'grin'),out=()=>drawPortrait(cvs,c,c.expr);
+  b.addEventListener('pointerenter',over);b.addEventListener('pointerleave',out);b.addEventListener('focus',over);b.addEventListener('blur',out);
+  b.addEventListener('click',()=>{
+    if(sel===i){toggleInSquad(i);}
+    else{sel=i;if(squad.indexOf(i)<0&&squad.length<4)squad.push(i);showDetail();sfx('blip');}
+  });
+});
+showDetail();
+
+/* ---------- start / stop ---------- */
+function startGame(){
+  const members=squad.map((idx,i)=>({
+    ch:CAST[idx],
+    x:WORK_SPOTS[i%WORK_SPOTS.length].x,
+    y:WORK_SPOTS[i%WORK_SPOTS.length].y,
+    walk:0,moving:false,carry:null,energy:100,onBreak:false,breakT:0,drink:null,mood:0,refreshedT:0
+  }));
+  Object.assign(G,{run:true,t:0,score:0,served:0,streak:0,players:playersMode,squad:members,activeIdx:0,customers:[],spawnT:1,chatOpen:false,floaters:[],parts:[],friends:new Set(),stars:0,catT:0,banterT:2.5,banterPair:null,banterLine:null,banterSpeaker:null,banterBubbleT:0});
+  pInput.forEach(k=>{k.left=k.right=k.up=k.down=false;});
+  TABLES.forEach(t=>t.c=null);
+  $('#title').hidden=true;$('#game').hidden=false;syncNativeControls();
+  if(!BG)BG=buildBG();renderSquadHud();hud();window.scrollTo(0,0);
+  toast(android?'Use the joystick to move. Grab orders at the counter.':playersMode>1?(playersMode+'-Player Co-op started! Each player controls their own hero.'):'Use 1-'+members.length+' or Q to switch heroes, and B to take breaks!');
+  last=performance.now();gameFrame=requestAnimationFrame(loop);
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{BG=buildBG();});
+}
+function stopGame(){cancelAnimationFrame(gameFrame);G.run=false;closeChat();$('#game').hidden=true;$('#title').hidden=false;syncNativeControls();window.scrollTo(0,0);}
+$('#startBtn').addEventListener('click',()=>{sfx('pop');startGame();});
+$('#backBtn').addEventListener('click',e=>{e.currentTarget.blur();stopGame();});
+$('#soundBtn').addEventListener('click',e=>{soundOn=!soundOn;e.currentTarget.textContent='Sound: '+(soundOn?'on':'off');e.currentTarget.blur();});
+
+/* ---------- input ---------- */
+const MULTI_KEYS={
+  KeyW:[0,'up'],KeyA:[0,'left'],KeyS:[0,'down'],KeyD:[0,'right'],
+  ArrowUp:[1,'up'],ArrowLeft:[1,'left'],ArrowDown:[1,'down'],ArrowRight:[1,'right'],
+  KeyI:[2,'up'],KeyJ:[2,'left'],KeyK:[2,'down'],KeyL:[2,'right'],
+  Numpad8:[3,'up'],Numpad4:[3,'left'],Numpad5:[3,'down'],Numpad6:[3,'right']
+};
+addEventListener('keydown',e=>{
+  if(e.target&&e.target.tagName==='INPUT'){if(e.key==='Escape')closeChat();return;}
+  if(!G.run)return;
+  if(G.chatOpen){if(e.key==='Escape')closeChat();return;}
+  const mk=MULTI_KEYS[e.code];
+  if(mk){
+    const [pIdx,dir]=mk;
+    if(pIdx<G.players){pInput[pIdx][dir]=true;e.preventDefault();return;}
+    if(pIdx===0){pInput[G.activeIdx][dir]=true;e.preventDefault();return;}
+  }
+  if((e.code==='KeyE'||e.code==='Space')&&!e.repeat){e.preventDefault();actFor(G.players>1?0:G.activeIdx);}
+  else if((e.code==='Enter'||e.code==='Slash')&&!e.repeat&&G.players>=2){
+    e.preventDefault();
+    if(e.code==='Slash')toggleBreak(1);else actFor(1);
+  }
+  else if(e.code==='KeyU'&&!e.repeat&&G.players>=3){e.preventDefault();actFor(2);}
+  else if(e.code==='Numpad0'&&!e.repeat&&G.players>=4){e.preventDefault();actFor(3);}
+  else if((e.code==='KeyC'||e.code==='KeyT')&&!e.repeat){e.preventDefault();chatNear();}
+  else if(e.code==='KeyB'&&!e.repeat){e.preventDefault();toggleBreak(G.activeIdx);}
+  else if((e.code==='KeyQ'||e.code==='Tab')&&!e.repeat&&G.squad.length>1){e.preventDefault();switchHero((G.activeIdx+1)%G.squad.length,false);}
+  else if(['Digit1','Digit2','Digit3','Digit4'].indexOf(e.code)>=0&&!e.repeat){
+    const idx=['Digit1','Digit2','Digit3','Digit4'].indexOf(e.code);
+    if(idx<G.squad.length){e.preventDefault();switchHero(idx,false);}
+  }
+});
+addEventListener('keyup',e=>{
+  const mk=MULTI_KEYS[e.code];
+  if(mk){const [pIdx,dir]=mk;pInput[pIdx][dir]=false;pInput[G.activeIdx][dir]=false;}
+});
+addEventListener('blur',()=>{pInput.forEach(k=>{k.left=k.right=k.up=k.down=false;});});
+document.querySelectorAll('[data-hold]').forEach(b=>{
+  const dir=b.dataset.hold;
+  b.addEventListener('pointerdown',e=>{e.preventDefault();pInput[G.activeIdx][dir]=true;b.classList.add('on');});
+  ['pointerup','pointercancel','pointerleave'].forEach(ev=>b.addEventListener(ev,()=>{pInput[G.activeIdx][dir]=false;b.classList.remove('on');}));
+});
+$('#padAct').addEventListener('pointerdown',e=>{e.preventDefault();actFor(G.activeIdx);});
+$('#padChat').addEventListener('pointerdown',e=>{e.preventDefault();chatNear();});
+$('#padSwitch').addEventListener('pointerdown',e=>{e.preventDefault();if(G.squad.length>1)switchHero((G.activeIdx+1)%G.squad.length,false);});
+$('#padBreak').addEventListener('pointerdown',e=>{e.preventDefault();toggleBreak(G.activeIdx);});
+})();
+</script>
+
+</body></html>
